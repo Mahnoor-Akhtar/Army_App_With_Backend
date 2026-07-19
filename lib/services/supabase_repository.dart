@@ -17,6 +17,14 @@ class SupabaseRepository {
     return (response as List).map((json) => Personnel.fromJson(json)).toList();
   }
 
+  Future<void> addPersonnel(Map<String, dynamic> personnelData) async {
+    await _db.from('personnel').insert(personnelData);
+  }
+
+  Future<void> updatePersonnel(String armyNo, Map<String, dynamic> personnelData) async {
+    await _db.from('personnel').update(personnelData).eq('army_no', armyNo);
+  }
+
   Future<List<Map<String, dynamic>>> getCurrentPersonnelStatus() async {
     final response = await _db.from('v_current_personnel_status').select();
     return List<Map<String, dynamic>>.from(response);
@@ -28,17 +36,47 @@ class SupabaseRepository {
     String? subcategory,
     String? subSubcategory,
     String? destination,
+    DateTime? startDate,
+    DateTime? endDate,
     String? remarks,
     String? createdBy,
   }) async {
-    await _db.rpc('update_personnel_status', params: {
-      'p_army_no': armyNo,
-      'p_category': category,
-      'p_subcategory': subcategory,
-      'p_sub_subcategory': subSubcategory,
-      'p_destination': destination,
-      'p_remarks': remarks,
-      'p_created_by': createdBy,
+    final now = DateTime.now().toIso8601String();
+    
+    // 1. Close current active status
+    await _db
+        .from('status_history')
+        .update({
+          'end_date': startDate?.toIso8601String() ?? now,
+          'updated_at': now,
+          'updated_by': createdBy,
+        })
+        .eq('army_no', armyNo)
+        .filter('end_date', 'is', null);
+
+    // If there is an expected endDate, append it to remarks
+    String finalRemarks = remarks ?? '';
+    if (endDate != null) {
+      final formattedEndDate = endDate.toIso8601String().split('T')[0];
+      final returnNote = 'Expected Return: $formattedEndDate';
+      if (finalRemarks.isEmpty) {
+        finalRemarks = returnNote;
+      } else {
+        finalRemarks = '$finalRemarks | $returnNote';
+      }
+    }
+
+    // 2. Insert new active status
+    await _db.from('status_history').insert({
+      'army_no': armyNo,
+      'category': category,
+      'subcategory': subcategory,
+      'sub_subcategory': subSubcategory,
+      'start_date': startDate?.toIso8601String() ?? now,
+      'end_date': null, // Must be null for the view v_current_personnel_status to see it as active
+      'destination': destination,
+      'remarks': finalRemarks.isNotEmpty ? finalRemarks : null,
+      'created_by': createdBy,
     });
   }
 
@@ -90,9 +128,44 @@ class SupabaseRepository {
         .from('status_categories')
         .select()
         .order('level', ascending: true)
-        .order('sort_order', ascending: true);
+        .order('created_at', ascending: true);
 
     return List<Map<String, dynamic>>.from(response);
+  }
+
+  Future<void> syncStatusHierarchy(Map<String, dynamic> hierarchy) async {
+    // Delete existing hierarchy (will cascade to children)
+    await _db.from('status_categories').delete().neq('name', '!!!DUMMY!!!');
+
+    for (var mainEntry in hierarchy.entries) {
+      final mainName = mainEntry.key;
+      final mainRes = await _db.from('status_categories').insert({
+        'name': mainName,
+        'level': 1,
+      }).select().single();
+      
+      final mainId = mainRes['id'];
+      
+      final subData = mainEntry.value;
+      if (subData is List) {
+        for (var subName in subData) {
+          await _db.from('status_categories').insert({
+            'name': subName,
+            'parent_id': mainId,
+            'level': 2,
+          });
+        }
+      } else if (subData is Map) {
+        for (var subEntry in subData.entries) {
+          final subName = subEntry.key;
+          await _db.from('status_categories').insert({
+            'name': subName,
+            'parent_id': mainId,
+            'level': 2,
+          });
+        }
+      }
+    }
   }
 
   Future<Map<String, dynamic>> getStatusHierarchy() async {
@@ -123,46 +196,6 @@ class SupabaseRepository {
       }
       if (hierarchy[parentName] is List<String>) {
         (hierarchy[parentName] as List<String>).add(cat['name'] as String);
-      }
-    }
-
-    // Level 3: sub-subcategories
-    for (var cat in categories.where((c) => c['level'] == 3)) {
-      final parentId = cat['parent_id'] as String?;
-      if (parentId == null) continue;
-      final parentName = idToName[parentId];
-      if (parentName == null) continue;
-
-      // Find grandparent
-      String? grandparentName;
-      for (var level2Cat in categories.where((c) => c['level'] == 2)) {
-        if (level2Cat['id'] == parentId) {
-          final level2ParentId = level2Cat['parent_id'] as String?;
-          if (level2ParentId != null) {
-            grandparentName = idToName[level2ParentId];
-          }
-        }
-      }
-      if (grandparentName == null) continue;
-
-      // Convert parent's data to map if it's a list
-      if (hierarchy[grandparentName] is List<String>) {
-        final tempList = hierarchy[grandparentName] as List<String>;
-        final tempMap = <String, List<String>>{};
-        for (var sub in tempList) {
-          tempMap[sub] = [];
-        }
-        hierarchy[grandparentName] = tempMap;
-      }
-
-      if (hierarchy[grandparentName] is Map<String, dynamic>) {
-        final subMap = hierarchy[grandparentName] as Map<String, dynamic>;
-        if (!subMap.containsKey(parentName)) {
-          subMap[parentName] = <String>[];
-        }
-        if (subMap[parentName] is List<String>) {
-          (subMap[parentName] as List<String>).add(cat['name'] as String);
-        }
       }
     }
 

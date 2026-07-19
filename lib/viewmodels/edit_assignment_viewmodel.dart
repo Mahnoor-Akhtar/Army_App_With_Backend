@@ -15,27 +15,23 @@ class EditAssignmentViewModel extends ChangeNotifier {
 
   late String _selectedCategory;
   String? _selectedSubcategory;
-  String? _selectedSubSubcategory;
   late DateTime _startDate;
   DateTime? _endDate;
   String? _destination;
 
   List<String> _categories = [];
   List<String> _subcategories = [];
-  List<String> _subSubcategories = [];
   Map<String, dynamic> _statusHierarchy = {};
 
   // ── Getters ─────────────────────────────────────────────────────────────
 
   String get selectedCategory => _selectedCategory;
   String? get selectedSubcategory => _selectedSubcategory;
-  String? get selectedSubSubcategory => _selectedSubSubcategory;
   DateTime get startDate => _startDate;
   DateTime? get endDate => _endDate;
   String? get destination => _destination;
   List<String> get categories => _categories;
   List<String> get subcategories => _subcategories;
-  List<String> get subSubcategories => _subSubcategories;
 
   // ── Constructor ──────────────────────────────────────────────────────────
 
@@ -49,7 +45,6 @@ class EditAssignmentViewModel extends ChangeNotifier {
 
     _selectedCategory = currentStatus.category;
     _selectedSubcategory = currentStatus.subcategory;
-    _selectedSubSubcategory = currentStatus.subSubcategory;
     _destination = currentStatus.destination;
 
     final now = DateTime.now();
@@ -85,9 +80,7 @@ class EditAssignmentViewModel extends ChangeNotifier {
       _subcategories = [];
       if (!initial) {
         _selectedSubcategory = null;
-        _selectedSubSubcategory = null;
       }
-      _subSubcategories = [];
     } else if (categoryData is List<String>) {
       // Deduplicate subcategories
       final uniqueSubs = <String>{};
@@ -96,9 +89,7 @@ class EditAssignmentViewModel extends ChangeNotifier {
           (_selectedSubcategory != null &&
               !_subcategories.contains(_selectedSubcategory))) {
         _selectedSubcategory = _subcategories.isNotEmpty ? _subcategories.first : null;
-        _selectedSubSubcategory = null;
       }
-      _subSubcategories = [];
     } else if (categoryData is Map<String, dynamic>) {
       // Deduplicate subcategories
       final uniqueSubs = <String>{};
@@ -107,20 +98,6 @@ class EditAssignmentViewModel extends ChangeNotifier {
           (_selectedSubcategory != null &&
               !_subcategories.contains(_selectedSubcategory))) {
         _selectedSubcategory = _subcategories.isNotEmpty ? _subcategories.first : null;
-      }
-      final subSubData = categoryData[_selectedSubcategory];
-      if (subSubData != null && subSubData is List<String>) {
-        // Deduplicate sub-subcategories
-        final uniqueSubSubs = <String>{};
-        _subSubcategories = subSubData.where((s) => uniqueSubSubs.add(s)).toList();
-        if (!initial ||
-            (_selectedSubSubcategory != null &&
-                !_subSubcategories.contains(_selectedSubSubcategory))) {
-          _selectedSubSubcategory = _subSubcategories.isNotEmpty ? _subSubcategories.first : null;
-        }
-      } else {
-        _subSubcategories = [];
-        _selectedSubSubcategory = null;
       }
     }
   }
@@ -133,14 +110,8 @@ class EditAssignmentViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void setSubcategory(String subcategory) {
+  void setSubcategory(String? subcategory) {
     _selectedSubcategory = subcategory;
-    _updateDropdownLists();
-    notifyListeners();
-  }
-
-  void setSubSubcategory(String subSubcategory) {
-    _selectedSubSubcategory = subSubcategory;
     notifyListeners();
   }
 
@@ -164,17 +135,16 @@ class EditAssignmentViewModel extends ChangeNotifier {
 
   // ── Save ─────────────────────────────────────────────────────────────────
 
-  void saveAssignment() {
+  Future<void> saveAssignment() async {
     final armyNo = person['armyNo'] ?? '';
     final newStatus = PersonStatus(
       category: _selectedCategory,
       subcategory: _selectedSubcategory,
-      subSubcategory: _selectedSubSubcategory,
       startDate: _startDate,
       endDate: _endDate,
       destination: _destination,
     );
-    _dataManager.updateStatus(armyNo, newStatus);
+    await _dataManager.updateStatus(armyNo, newStatus);
   }
 
   // ── Utility ──────────────────────────────────────────────────────────────

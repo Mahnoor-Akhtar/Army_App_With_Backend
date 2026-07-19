@@ -339,7 +339,9 @@ CREATE OR REPLACE FUNCTION update_personnel_status(
     p_sub_subcategory VARCHAR DEFAULT NULL,
     p_destination VARCHAR DEFAULT NULL,
     p_remarks TEXT DEFAULT NULL,
-    p_created_by VARCHAR DEFAULT NULL
+    p_created_by VARCHAR DEFAULT NULL,
+    p_start_date TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    p_end_date TIMESTAMP WITH TIME ZONE DEFAULT NULL
 )
 RETURNS VOID AS $$
 BEGIN
@@ -353,11 +355,20 @@ BEGIN
     -- Insert new active status
     INSERT INTO status_history (
         army_no, category, subcategory, sub_subcategory, 
-        start_date, destination, remarks, created_by
+        start_date, end_date, destination, remarks, created_by
     ) VALUES (
         p_army_no, p_category, p_subcategory, p_sub_subcategory,
-        NOW(), p_destination, p_remarks, p_created_by
+        COALESCE(p_start_date, NOW()), p_end_date, p_destination, p_remarks, p_created_by
     );
+
+    -- Update personnel table attributes
+    UPDATE personnel
+    SET status_category = p_category,
+        status_subcategory = p_subcategory,
+        status_start_date = COALESCE(p_start_date, NOW()),
+        status_end_date = p_end_date,
+        updated_at = NOW()
+    WHERE army_no = p_army_no;
 END;
 $$ LANGUAGE plpgsql;
 ```

@@ -3,7 +3,6 @@
 class PersonStatus {
   String category;
   String? subcategory;
-  String? subSubcategory;
   final DateTime startDate;
   final DateTime? endDate;
   String? destination;
@@ -11,7 +10,6 @@ class PersonStatus {
   PersonStatus({
     required this.category,
     this.subcategory,
-    this.subSubcategory,
     required this.startDate,
     this.endDate,
     this.destination,
@@ -20,7 +18,6 @@ class PersonStatus {
   Map<String, dynamic> toJson() => {
         'category': category,
         'subcategory': subcategory,
-        'subSubcategory': subSubcategory,
         'startDate': startDate.toIso8601String(),
         'endDate': endDate?.toIso8601String(),
         'destination': destination,
@@ -29,7 +26,6 @@ class PersonStatus {
   factory PersonStatus.fromJson(Map<String, dynamic> json) => PersonStatus(
         category: json['category'] as String,
         subcategory: json['subcategory'] as String?,
-        subSubcategory: json['subSubcategory'] as String?,
         startDate: DateTime.parse(json['startDate'] as String),
         endDate: json['endDate'] != null
             ? DateTime.parse(json['endDate'] as String)
@@ -40,7 +36,6 @@ class PersonStatus {
   String get displayPath {
     final List<String> parts = [category];
     if (subcategory != null) parts.add(subcategory!);
-    if (subSubcategory != null) parts.add(subSubcategory!);
     return parts.join(' -> ');
   }
 

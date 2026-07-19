@@ -9,11 +9,11 @@ class MovementHistoryWidget extends StatelessWidget {
   final ValueChanged<int>? onDaysChanged;
 
   const MovementHistoryWidget({
-    Key? key,
+    super.key,
     required this.records,
     this.selectedDays = 90,
     this.onDaysChanged,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -143,7 +143,7 @@ class MovementHistoryWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.01),
+            color: Colors.black.withValues(alpha: 0.01),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -240,7 +240,7 @@ class MovementHistoryWidget extends StatelessWidget {
 
 // Example usage to show you how to render the exact data from the image:
 class MovementHistoryDemoScreen extends StatelessWidget {
-  const MovementHistoryDemoScreen({Key? key}) : super(key: key);
+  const MovementHistoryDemoScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

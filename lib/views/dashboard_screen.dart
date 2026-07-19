@@ -60,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   // Attendance filter state variables
   String _filterCategory = 'Leave';
-  List<String> _filterSelectedSubcategories = [];
+  final List<String> _filterSelectedSubcategories = [];
   DateTime? _filterStartDate;
   DateTime? _filterEndDate;
   final TextEditingController _filterDestinationController = TextEditingController();
@@ -945,15 +945,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                             mainCategory: categoryName,
                                             subCategory: subName,
                                             context: context,
-                                            items: subSubList
-                                                .map(
-                                                  (subSub) => {
-                                                    'name': subSub,
-                                                    'val':
-                                                        '${manager.getCountForSubSubcategory(categoryName, subName, subSub)}',
-                                                  },
-                                                )
-                                                .toList(),
+                                            items: [],
                                           );
                                         }).toList();
                                       }
@@ -1588,10 +1580,10 @@ class _DashboardScreenState extends State<DashboardScreen>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
-        color: isDark ? const Color(0xFF03140A) : const Color(0xFFE8F5EE).withOpacity(0.5),
+        color: isDark ? const Color(0xFF03140A) : const Color(0xFFE8F5EE).withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
-          color: goldAccent.withOpacity(0.3),
+          color: goldAccent.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -1682,15 +1674,15 @@ class _DashboardScreenState extends State<DashboardScreen>
           child: Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: isDark ? const Color(0xFF0C5A32).withOpacity(0.12) : Colors.white,
+              color: isDark ? const Color(0xFF0C5A32).withValues(alpha: 0.12) : Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: isDark ? goldAccent.withOpacity(0.25) : const Color(0xFF0C5A32).withOpacity(0.15),
+                color: isDark ? goldAccent.withValues(alpha: 0.25) : const Color(0xFF0C5A32).withValues(alpha: 0.15),
                 width: 1.0,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: isDark ? Colors.black.withOpacity(0.15) : const Color(0xFF0C5A32).withOpacity(0.04),
+                  color: isDark ? Colors.black.withValues(alpha: 0.15) : const Color(0xFF0C5A32).withValues(alpha: 0.04),
                   blurRadius: 8,
                 ),
               ],
@@ -1719,10 +1711,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             decoration: BoxDecoration(
-                              color: isDark ? const Color(0xFF03140A) : const Color(0xFFE8F5EE).withOpacity(0.5),
+                              color: isDark ? const Color(0xFF03140A) : const Color(0xFFE8F5EE).withValues(alpha: 0.5),
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: goldAccent.withOpacity(0.3),
+                                color: goldAccent.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                             ),
@@ -1770,14 +1762,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                               style: TextStyle(color: textThemeColor, fontSize: 13, fontWeight: FontWeight.bold),
                               decoration: InputDecoration(
                                 hintText: 'Search location...',
-                                hintStyle: TextStyle(color: silverText.withOpacity(0.5), fontSize: 12),
+                                hintStyle: TextStyle(color: silverText.withValues(alpha: 0.5), fontSize: 12),
                                 prefixIcon: Icon(Icons.location_on_rounded, color: goldAccent, size: 16),
                                 filled: true,
-                                fillColor: isDark ? const Color(0xFF03140A) : const Color(0xFFE8F5EE).withOpacity(0.5),
+                                fillColor: isDark ? const Color(0xFF03140A) : const Color(0xFFE8F5EE).withValues(alpha: 0.5),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: goldAccent.withOpacity(0.3), width: 1),
+                                  borderSide: BorderSide(color: goldAccent.withValues(alpha: 0.3), width: 1),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -1829,7 +1821,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(8),
                               side: BorderSide(
-                                color: isSelected ? goldAccent : goldAccent.withOpacity(0.3),
+                                color: isSelected ? goldAccent : goldAccent.withValues(alpha: 0.3),
                                 width: 1,
                               ),
                             ),
@@ -1971,11 +1963,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.filter_list_off_rounded, size: 48, color: silverText.withOpacity(0.3)),
+                      Icon(Icons.filter_list_off_rounded, size: 48, color: silverText.withValues(alpha: 0.3)),
                       const SizedBox(height: 10),
                       Text(
                         'No personnel matches current filters',
-                        style: TextStyle(color: silverText.withOpacity(0.6), fontSize: 13, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: silverText.withValues(alpha: 0.6), fontSize: 13, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -2009,12 +2001,12 @@ class _DashboardScreenState extends State<DashboardScreen>
                       },
       child: Card(
                       margin: const EdgeInsets.only(bottom: 10),
-                      color: isDark ? const Color(0xFF0C5A32).withOpacity(0.08) : Colors.white,
+                      color: isDark ? const Color(0xFF0C5A32).withValues(alpha: 0.08) : Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                         side: BorderSide(
-                          color: isDark ? goldAccent.withOpacity(0.2) : const Color(0xFF0C5A32).withOpacity(0.12),
+                          color: isDark ? goldAccent.withValues(alpha: 0.2) : const Color(0xFF0C5A32).withValues(alpha: 0.12),
                           width: 1,
                         ),
                       ),
@@ -2040,8 +2032,8 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
                                     color: isLeave 
-                                        ? const Color(0xFFD32F2F).withOpacity(0.15)
-                                        : const Color(0xFF388E3C).withOpacity(0.15),
+                                        ? const Color(0xFFD32F2F).withValues(alpha: 0.15)
+                                        : const Color(0xFF388E3C).withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(6),
                                   ),
                                   child: Text(
@@ -2064,10 +2056,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                                     Icon(Icons.calendar_month_rounded, color: goldAccent, size: 14),
                                     const SizedBox(width: 6),
                                     Text(
-                                      '${status.startDate.day}/${status.startDate.month}/${status.startDate.year}' +
-                                          (status.endDate != null 
+                                      '${status.startDate.day}/${status.startDate.month}/${status.startDate.year}${status.endDate != null 
                                               ? ' to ${status.endDate!.day}/${status.endDate!.month}/${status.endDate!.year}'
-                                              : ' (Infinite)'),
+                                              : ' (Infinite)'}',
                                       style: TextStyle(color: silverText, fontSize: 12),
                                     ),
                                   ],
@@ -2523,96 +2514,17 @@ class _DashboardScreenState extends State<DashboardScreen>
                 if (isSubExpanded) ...[
                   const Divider(height: 1, thickness: 0.5),
                   Padding(
-                    padding: const EdgeInsets.all(6.0),
-                    child: Column(
-                      children: categoryData[subName]!.map((subSubName) {
-                        final subSubPath =
-                            '$categoryName -> $subName -> $subSubName';
-                        final isSubSubExpanded = _expandedEditSubSubcategories
-                            .contains(subSubPath);
-                        final subSubCount = manager.getCountForSubSubcategory(
-                          categoryName,
-                          subName,
-                          subSubName,
-                        );
-
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: 4),
-                          decoration: BoxDecoration(
-                            color: isDark
-                                ? Colors.black.withValues(alpha: 0.3)
-                                : Colors.white.withValues(alpha: 0.6),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Column(
-                            children: [
-                              ListTile(
-                                dense: true,
-                                title: Text(
-                                  subSubName,
-                                  style: TextStyle(
-                                    color: textThemeColor,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                trailing: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      '$subSubCount',
-                                      style: TextStyle(
-                                        color: valueGreenColor,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Icon(
-                                      isSubSubExpanded
-                                          ? Icons.keyboard_arrow_up_rounded
-                                          : Icons.keyboard_arrow_down_rounded,
-                                      color: goldAccent,
-                                      size: 16,
-                                    ),
-                                  ],
-                                ),
-                                onTap: () {
-                                  setState(() {
-                                    if (isSubSubExpanded) {
-                                      _expandedEditSubSubcategories.remove(
-                                        subSubPath,
-                                      );
-                                    } else {
-                                      _expandedEditSubSubcategories.add(
-                                        subSubPath,
-                                      );
-                                    }
-                                  });
-                                },
-                              ),
-                              if (isSubSubExpanded) ...[
-                                const Divider(height: 1, thickness: 0.5),
-                                Padding(
-                                  padding: const EdgeInsets.all(4.0),
-                                  child: _buildEditPersonnelList(
-                                    manager.getPeopleInNode(
-                                      category: categoryName,
-                                      subcategory: subName,
-                                      subSubcategory: subSubName,
-                                    ),
-                                    isDark,
-                                    textThemeColor,
-                                    silverText,
-                                    goldAccent,
-                                    valueGreenColor,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                    padding: const EdgeInsets.all(4.0),
+                    child: _buildEditPersonnelList(
+                      manager.getPeopleInNode(
+                        category: categoryName,
+                        subcategory: subName,
+                      ),
+                      isDark,
+                      textThemeColor,
+                      silverText,
+                      goldAccent,
+                      valueGreenColor,
                     ),
                   ),
                 ],
@@ -3176,7 +3088,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                                     (newName) {
                                                       setDialogState(() {
                                                         manager
-                                                            .renameSubSubcategory(
+                                                            .renameSubcategory( // 
                                                               category,
                                                               subName,
                                                               subSub,
@@ -3499,7 +3411,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                                     () {
                                                       setDialogState(() {
                                                         manager
-                                                            .deleteSubSubcategory(
+                                                            .deleteSubcategory( // 
                                                               category,
                                                               subName,
                                                               subSub,
@@ -3844,9 +3756,10 @@ class _DashboardScreenState extends State<DashboardScreen>
                       if (selectedMainCat == null) return;
                       manager.addSubcategory(selectedMainCat!, name);
                     } else if (addType == 'Sub-subcategory') {
-                      if (selectedMainCat == null || selectedSubCat == null)
+                      if (selectedMainCat == null || selectedSubCat == null) {
                         return;
-                      manager.addSubSubcategory(
+                      }
+                      manager.addSubcategory( // 
                         selectedMainCat!,
                         selectedSubCat!,
                         name,
@@ -4024,8 +3937,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                                   slot['username'] as String? ?? '';
 
                               String roleLabel = 'USER';
-                              if (slotRole == 'superadmin')
+                              if (slotRole == 'superadmin') {
                                 roleLabel = 'SUPER ADMIN';
+                              }
                               if (slotRole == 'admin') roleLabel = 'ADMIN';
 
                               String details = 'Empty Slot';
@@ -4779,8 +4693,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                                         ),
                                         trailing: ElevatedButton(
                                           onPressed: () async {
-                                            if (!statefulContext.mounted)
+                                            if (!statefulContext.mounted) {
                                               return;
+                                            }
                                             Navigator.pop(statefulContext);
                                             Future.delayed(Duration.zero, () {
                                               if (pageContext.mounted) {
@@ -5592,7 +5507,7 @@ class _DashboardScreenState extends State<DashboardScreen>
         final rank = person['rank'] ?? '';
         final trade = _getTrade(person);
         final status = manager.getStatus(armyNo);
-        final history = manager.getHistory(armyNo);
+        final history = await manager.getHistory(armyNo);
 
         if (history.isEmpty) {
           rows.add([armyNo, name, rank, trade, status.category, '', '', '']);
@@ -5694,8 +5609,8 @@ class _DashboardScreenState extends State<DashboardScreen>
       final status = manager.getStatus(person['armyNo'] ?? '');
       
       String duty = '';
-      if (status.subSubcategory != null && status.subSubcategory!.isNotEmpty) {
-        duty = status.subSubcategory!;
+      if (false) {
+        
       } else if (status.subcategory != null && status.subcategory!.isNotEmpty) {
         duty = status.subcategory!;
       }
@@ -6010,7 +5925,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         _buildTableCell('$pct%'),
                       ],
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
               pw.SizedBox(height: 32),
@@ -7616,7 +7531,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                         if (subCategory != null) {
                           if (status.category == mainCategory &&
                               status.subcategory == subCategory) {
-                            return status.subSubcategory ?? '';
+                            return '';
                           }
                           return '';
                         } else {
@@ -8440,13 +8355,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     final r = rank.trim().toLowerCase();
 
     // 1. Officers
-    if (r == 'lt col' || r.startsWith('lt col') || r.contains('lt col'))
+    if (r == 'lt col' || r.startsWith('lt col') || r.contains('lt col')) {
       return 'Lt Col';
+    }
     if (r == 'maj' || r.startsWith('maj') || r.contains('maj')) return 'Maj';
-    if (r == 'capt' || r.startsWith('capt') || r.contains('capt'))
+    if (r == 'capt' || r.startsWith('capt') || r.contains('capt')) {
       return 'Capt';
-    if (r == '2/lt' || r == '2-lt' || r == '2/ lt' || r.contains('2/lt'))
+    }
+    if (r == '2/lt' || r == '2-lt' || r == '2/ lt' || r.contains('2/lt')) {
       return '2/Lt';
+    }
     if (r == 'lt' || r == 'lieutenant') return 'Lt';
 
     // 2. JCOs
@@ -8454,8 +8372,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (r == 'n/sub' ||
         r == 'n-sub' ||
         r == 'naib subedar' ||
-        r.contains('n/sub'))
+        r.contains('n/sub')) {
       return 'N/Sub';
+    }
     if (r == 'sub' || r == 'subedar') return 'Sub';
 
     // 3. Soldiers
@@ -8507,13 +8426,15 @@ class _DashboardScreenState extends State<DashboardScreen>
     if (category == 'ncbs' || combined.contains('ncb')) return 'NCB';
     if (category == 'sws' ||
         combined.contains('sw') ||
-        combined.contains('s/w'))
+        combined.contains('s/w')) {
       return 'S/W';
+    }
     if (category == 'c/us' ||
         combined.contains('ck') ||
         combined.contains('c/u') ||
-        combined.contains('c/m'))
+        combined.contains('c/m')) {
       return 'Ck';
+    }
     if (category == 'civs' || combined.contains('civ')) return 'Civ';
     if (category == 'lads' || combined.contains('lad')) return 'LAD';
 
@@ -8527,8 +8448,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
     if (category == 'svys' ||
         combined.contains('svy') ||
-        combined.contains('sry'))
+        combined.contains('sry')) {
       return 'Svy';
+    }
     if (category == 'tas' || combined.contains('ta')) return 'TA';
     if (category == 'ocsu' || combined.contains('ocu')) return 'OCU';
     if (category == 'dsvs' || combined.contains('dsv')) return 'DSV';
@@ -8600,7 +8522,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     required ValueChanged<String?> onChanged,
   }) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       isExpanded: true,
       dropdownColor: isDark ? const Color(0xFF03140A) : Colors.white,
       style: TextStyle(
@@ -9030,12 +8952,15 @@ class _DashboardScreenState extends State<DashboardScreen>
                     if (isFiltered)
                       GestureDetector(
                         onTap: () => setState(() {
-                          if (_analysisMode == 'Battery')
+                          if (_analysisMode == 'Battery') {
                             _analysisFilterBattery = ['All'];
-                          if (_analysisMode == 'Trade')
+                          }
+                          if (_analysisMode == 'Trade') {
                             _analysisFilterTrade = ['All'];
-                          if (_analysisMode == 'Rank')
+                          }
+                          if (_analysisMode == 'Rank') {
                             _analysisFilterRank = ['All'];
+                          }
                         }),
                         child: Text(
                           'Reset',
@@ -10292,13 +10217,16 @@ class _CategoryPersonnelListScreenState
     final r = rank.trim().toLowerCase();
 
     // 1. Officers
-    if (r == 'lt col' || r.startsWith('lt col') || r.contains('lt col'))
+    if (r == 'lt col' || r.startsWith('lt col') || r.contains('lt col')) {
       return 'Lt Col';
+    }
     if (r == 'maj' || r.startsWith('maj') || r.contains('maj')) return 'Maj';
-    if (r == 'capt' || r.startsWith('capt') || r.contains('capt'))
+    if (r == 'capt' || r.startsWith('capt') || r.contains('capt')) {
       return 'Capt';
-    if (r == '2/lt' || r == '2-lt' || r == '2/ lt' || r.contains('2/lt'))
+    }
+    if (r == '2/lt' || r == '2-lt' || r == '2/ lt' || r.contains('2/lt')) {
       return '2/Lt';
+    }
     if (r == 'lt' || r == 'lieutenant') return 'Lt';
 
     // 2. JCOs
@@ -10306,8 +10234,9 @@ class _CategoryPersonnelListScreenState
     if (r == 'n/sub' ||
         r == 'n-sub' ||
         r == 'naib subedar' ||
-        r.contains('n/sub'))
+        r.contains('n/sub')) {
       return 'N/Sub';
+    }
     if (r == 'sub' || r == 'subedar') return 'Sub';
 
     // 3. Soldiers
@@ -11503,7 +11432,7 @@ class PersonnelIdCardScreen extends StatelessWidget {
                                         ),
                                         boxShadow: [
                                           BoxShadow(
-                                            color: Colors.black.withOpacity(0.3),
+                                            color: Colors.black.withValues(alpha: 0.3),
                                             blurRadius: 6,
                                             offset: const Offset(0, 3),
                                           ),
@@ -11986,40 +11915,67 @@ class PersonnelIdCardScreen extends StatelessWidget {
                 Duration(days: selectedDays),
               );
               
-              final allHistory = PersonnelDataManager().getHistory(armyNo);
-              final filteredHistory = selectedDays == 0
-                  ? List<PersonStatus>.from(allHistory)
-                  : allHistory.where(
-                      (status) =>
-                          status.startDate.isAfter(filterDate) ||
-                          (status.endDate == null || status.endDate!.isAfter(filterDate)),
-                    ).toList();
-              
-              filteredHistory.sort((a, b) => b.startDate.compareTo(a.startDate));
+              return FutureBuilder<List<PersonStatus>>(
+                future: PersonnelDataManager().getHistory(armyNo),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Scaffold(
+                      backgroundColor: isDark ? const Color(0xFF051C0F) : Colors.white,
+                      appBar: AppBar(
+                        backgroundColor: goldAccent.withValues(alpha: isDark ? 0.14 : 0.10),
+                        elevation: 0,
+                        leading: IconButton(
+                          icon: Icon(Icons.arrow_back_ios_new_rounded, color: goldAccent, size: 20),
+                          onPressed: () => Navigator.pop(context),
+                        ),
+                        title: Text(
+                          'MOVEMENT HISTORY',
+                          style: TextStyle(
+                            color: goldAccent,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 0.8,
+                          ),
+                        ),
+                      ),
+                      body: const Center(child: CircularProgressIndicator()),
+                    );
+                  }
 
-              final List<MovementRecord> records = filteredHistory.map((status) {
-                final String duration;
-                if (status.endDate != null) {
-                  final days = status.endDate!.difference(status.startDate).inDays;
-                  duration = '$days Days';
-                } else {
-                  duration = '-';
-                }
+                  final allHistory = snapshot.data ?? [];
+                  final filteredHistory = selectedDays == 0
+                      ? List<PersonStatus>.from(allHistory)
+                      : allHistory.where(
+                          (status) =>
+                              status.startDate.isAfter(filterDate) ||
+                              (status.endDate == null || status.endDate!.isAfter(filterDate)),
+                        ).toList();
+                  
+                  filteredHistory.sort((a, b) => b.startDate.compareTo(a.startDate));
 
-                final String dateRange;
-                if (status.endDate != null) {
-                  dateRange = '${_formatDate(status.startDate)} to ${_formatDate(status.endDate!)}';
-                } else {
-                  dateRange = '${_formatDate(status.startDate)} to Present';
-                }
+                  final List<MovementRecord> records = filteredHistory.map((status) {
+                    final String duration;
+                    if (status.endDate != null) {
+                      final days = status.endDate!.difference(status.startDate).inDays;
+                      duration = '$days Days';
+                    } else {
+                      duration = '-';
+                    }
 
-                return MovementRecord(
-                  dateRange: dateRange,
-                  movement: status.displayPath.replaceAll(' -> ', ' → '),
-                  duration: duration,
-                  dotColor: status.endDate == null ? const Color(0xFFF39C12) : const Color(0xFF1B4D3E),
-                );
-              }).toList();
+                    final String dateRange;
+                    if (status.endDate != null) {
+                      dateRange = '${_formatDate(status.startDate)} to ${_formatDate(status.endDate!)}';
+                    } else {
+                      dateRange = '${_formatDate(status.startDate)} to Present';
+                    }
+
+                    return MovementRecord(
+                      dateRange: dateRange,
+                      movement: status.displayPath.replaceAll(' -> ', ' → '),
+                      duration: duration,
+                      dotColor: status.endDate == null ? const Color(0xFFF39C12) : const Color(0xFF1B4D3E),
+                    );
+                  }).toList();
 
               return Scaffold(
                 backgroundColor: isDark ? const Color(0xFF051C0F) : Colors.white,
@@ -12092,6 +12048,8 @@ class PersonnelIdCardScreen extends StatelessWidget {
                           ),
                         ),
                       ),
+              );
+                }
               );
             },
           );

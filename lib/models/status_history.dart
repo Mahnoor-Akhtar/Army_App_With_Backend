@@ -3,7 +3,6 @@ class StatusHistory {
   final String armyNo;
   final String category;
   final String? subcategory;
-  final String? subSubcategory;
   final DateTime startDate;
   final DateTime? endDate;
   final String? destination;
@@ -18,7 +17,6 @@ class StatusHistory {
     required this.armyNo,
     required this.category,
     this.subcategory,
-    this.subSubcategory,
     required this.startDate,
     this.endDate,
     this.destination,
@@ -30,14 +28,24 @@ class StatusHistory {
   });
 
   factory StatusHistory.fromJson(Map<String, dynamic> json) {
+    DateTime? parsedEndDate;
+    if (json['end_date'] != null) {
+      parsedEndDate = DateTime.parse(json['end_date'] as String);
+    } else if (json['remarks'] != null) {
+      final remarksStr = json['remarks'] as String;
+      final match = RegExp(r'Planned return: (\d{4}-\d{2}-\d{2})').firstMatch(remarksStr);
+      if (match != null) {
+        parsedEndDate = DateTime.tryParse(match.group(1)!);
+      }
+    }
+
     return StatusHistory(
       id: json['id'] as String,
       armyNo: json['army_no'] as String,
       category: json['category'] as String,
       subcategory: json['subcategory'] as String?,
-      subSubcategory: json['sub_subcategory'] as String?,
       startDate: DateTime.parse(json['start_date'] as String),
-      endDate: json['end_date'] != null ? DateTime.parse(json['end_date'] as String) : null,
+      endDate: parsedEndDate,
       destination: json['destination'] as String?,
       remarks: json['remarks'] as String?,
       createdBy: json['created_by'] as String?,

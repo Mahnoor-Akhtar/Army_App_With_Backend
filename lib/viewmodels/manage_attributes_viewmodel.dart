@@ -9,6 +9,7 @@ class ManageAttributesViewModel extends ChangeNotifier {
   List<String> trades = [];
   List<String> ranks = [];
   List<String> batteries = [];
+  List<String> categories = [];
   bool isLoading = true;
 
   ManageAttributesViewModel() {
@@ -26,6 +27,12 @@ class ManageAttributesViewModel extends ChangeNotifier {
       trades = await repo.getSystemAttributeItems('trades');
       ranks = await repo.getSystemAttributeItems('ranks');
       batteries = await repo.getSystemAttributeItems('batteries');
+      categories = await repo.getSystemAttributeItems('categories');
+
+      if (!trades.contains('All')) trades.insert(0, 'All');
+      if (!ranks.contains('All')) ranks.insert(0, 'All');
+      if (!batteries.contains('All')) batteries.insert(0, 'All');
+      if (!categories.contains('All')) categories.insert(0, 'All');
     } catch (e) {
       trades = await MockDataManager().getTrades();
       ranks = await MockDataManager().getRanks();
@@ -55,6 +62,11 @@ class ManageAttributesViewModel extends ChangeNotifier {
   Future<void> _saveBatteries() async {
     await MockDataManager().saveBatteries(batteries);
     try { await SupabaseRepository().updateSystemAttributeItems('batteries', batteries); } catch (_) {}
+  }
+
+  Future<void> _saveCategories() async {
+    // No MockDataManager method for categories yet, only save to Supabase
+    try { await SupabaseRepository().updateSystemAttributeItems('categories', categories); } catch (_) {}
   }
 
   // ── Trade CRUD ───────────────────────────────────────────────────────────
@@ -168,5 +180,25 @@ class ManageAttributesViewModel extends ChangeNotifier {
     batteries.removeAt(index);
     notifyListeners();
     await _saveBatteries();
+  }
+
+  // ── Category CRUD ───────────────────────────────────────────────────────
+
+  Future<void> addCategory(String value) async {
+    categories.add(value);
+    notifyListeners();
+    await _saveCategories();
+  }
+
+  Future<void> editCategory(int index, String value) async {
+    categories[index] = value;
+    notifyListeners();
+    await _saveCategories();
+  }
+
+  Future<void> deleteCategory(int index) async {
+    categories.removeAt(index);
+    notifyListeners();
+    await _saveCategories();
   }
 }

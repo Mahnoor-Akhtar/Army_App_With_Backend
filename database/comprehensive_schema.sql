@@ -281,10 +281,11 @@ SELECT
     p.phone_number,
     p.city,
     p.remarks,
+    -- From status history (only the active one)
     sh.category AS current_category,
     sh.subcategory AS current_subcategory,
-    sh.sub_subcategory AS current_sub_subcategory,
     sh.start_date,
+    sh.end_date,
     sh.destination,
     sh.remarks AS status_remarks
 FROM personnel p
@@ -651,6 +652,38 @@ INSERT INTO custom_groups (id, name, category, leader_army_no, leader_name, loca
 (gen_random_uuid(), 'PMA Visit Team', 'Travel', 'PA-61755', 'Capt Muhammad Ali', 'Kakul Abbottabad', 'Team visiting PMA for training', NOW() + INTERVAL '30 days', 'system'),
 (gen_random_uuid(), 'Assault Course Prep A', 'Training', 'PJO-3114197', 'N/Sub Gnr Muhammad Naeem', 'Training Area Sector 4', 'Preparation for assault course', NOW() + INTERVAL '15 days', 'system'),
 (gen_random_uuid(), 'Kitchen Working Party', 'Working Party', 'PA-45571', 'Maj Muhammad Usman Anwar', 'Mess Hall Cookhouse', 'Daily kitchen duties', NOW() + INTERVAL '7 days', 'system');
+
+-- Step 7: Add PostgreSQL Function for Status Update
+CREATE OR REPLACE FUNCTION update_personnel_status(
+    p_army_no VARCHAR,
+    p_category VARCHAR,
+    p_subcategory VARCHAR DEFAULT NULL,
+    p_sub_subcategory VARCHAR DEFAULT NULL,
+    p_destination VARCHAR DEFAULT NULL,
+    p_remarks TEXT DEFAULT NULL,
+    p_created_by VARCHAR DEFAULT NULL,
+    p_start_date TIMESTAMP WITH TIME ZONE DEFAULT NULL,
+    p_end_date TIMESTAMP WITH TIME ZONE DEFAULT NULL
+)
+RETURNS VOID AS $$
+BEGIN
+    -- Close current active status
+    UPDATE status_history
+    SET end_date = NOW(),
+        updated_by = p_created_by,
+        updated_at = NOW()
+    WHERE army_no = p_army_no AND end_date IS NULL;
+    
+    -- Insert new active status
+    INSERT INTO status_history (
+        army_no, category, subcategory, sub_subcategory, 
+        start_date, end_date, destination, remarks, created_by
+    ) VALUES (
+        p_army_no, p_category, p_subcategory, p_sub_subcategory,
+        COALESCE(p_start_date, NOW()), p_end_date, p_destination, p_remarks, p_created_by
+    );
+END;
+$$ LANGUAGE plpgsql;
 
 -- ============================================================================
 -- SECTION 7: COMMON QUERY EXAMPLES

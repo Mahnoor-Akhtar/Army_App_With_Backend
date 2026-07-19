@@ -124,7 +124,9 @@ class BatteryDetailViewModel extends ChangeNotifier {
         category == 's/ws' ||
         category == 'ncbs' ||
         category == 'civs' ||
-        category == 'lads') return false;
+        category == 'lads') {
+      return false;
+    }
     if (combined.contains('clk') ||
         combined.contains('ck ') ||
         combined.contains('ck(') ||
@@ -136,7 +138,9 @@ class BatteryDetailViewModel extends ChangeNotifier {
         combined.contains('civ') ||
         combined.contains('ncb') ||
         combined.contains('sw') ||
-        combined.contains('s/w')) return false;
+        combined.contains('s/w')) {
+      return false;
+    }
     return true;
   }
 
@@ -150,11 +154,15 @@ class BatteryDetailViewModel extends ChangeNotifier {
     if (category == 'ncbs' || combined.contains('ncb')) return 'NCB';
     if (category == 'sws' ||
         combined.contains('sw') ||
-        combined.contains('s/w')) return 'S/W';
+        combined.contains('s/w')) {
+      return 'S/W';
+    }
     if (category == 'c/us' ||
         combined.contains('ck') ||
         combined.contains('c/u') ||
-        combined.contains('c/m')) return 'Ck';
+        combined.contains('c/m')) {
+      return 'Ck';
+    }
     if (category == 'civs' || combined.contains('civ')) return 'Civ';
     if (category == 'lads' || combined.contains('lad')) return 'LAD';
 
@@ -168,7 +176,9 @@ class BatteryDetailViewModel extends ChangeNotifier {
     }
     if (category == 'svys' ||
         combined.contains('svy') ||
-        combined.contains('sry')) return 'Svy';
+        combined.contains('sry')) {
+      return 'Svy';
+    }
     if (category == 'tas' || combined.contains('ta')) return 'TA';
     if (category == 'ocsu' || combined.contains('ocu')) return 'OCU';
     if (category == 'dsvs' || combined.contains('dsv')) return 'DSV';
@@ -195,22 +205,30 @@ class BatteryDetailViewModel extends ChangeNotifier {
     if (r == 'n/sub' ||
         r == 'n-sub' ||
         r == 'naib subedar' ||
-        r.contains('n/sub')) return 'N/Sub';
+        r.contains('n/sub')) {
+      return 'N/Sub';
+    }
     if (r == 'sub' || r == 'subedar') return 'Sub';
     if (r.contains('hav') ||
         r.contains('bqmh') ||
         r.contains('rqmh') ||
-        r == 'havildar') return 'Hav';
+        r == 'havildar') {
+      return 'Hav';
+    }
     if (r == 'lhav' ||
         r == 'lhv' ||
         r == 'lance havildar' ||
         r.contains('lhav') ||
-        r.contains('lhv')) return 'Lhav';
+        r.contains('lhv')) {
+      return 'Lhav';
+    }
     if (r == 'lnk' ||
         r == 'l/nk' ||
         r == 'lance naik' ||
         r.contains('lnk') ||
-        r.contains('l/nk')) return 'Lnk';
+        r.contains('l/nk')) {
+      return 'Lnk';
+    }
     if (r == 'nk' || r == 'naik' || r == 'nco' || r.contains('nk')) {
       return 'Nk';
     }

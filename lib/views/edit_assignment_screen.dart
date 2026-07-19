@@ -105,9 +105,9 @@ class _EditAssignmentScreenContent extends StatelessWidget {
     );
   }
 
-  void _saveAssignment(BuildContext context) {
+  Future<void> _saveAssignment(BuildContext context) async {
     final viewModel = context.read<EditAssignmentViewModel>();
-    viewModel.saveAssignment();
+    await viewModel.saveAssignment();
     onSaved();
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -303,21 +303,6 @@ class _EditAssignmentScreenContent extends StatelessWidget {
                             const SizedBox(height: 14),
                           ],
 
-                          // Sub-subcategory (if applicable)
-                          if (viewModel.subSubcategories.isNotEmpty) ...[
-                            _buildFormLabel('Sub-subcategory Detail'),
-                            _buildDropdown<String>(
-                              value: viewModel.selectedSubSubcategory,
-                              items: viewModel.subSubcategories,
-                              onChanged: (val) {
-                                if (val != null) {
-                                  viewModel.setSubSubcategory(val);
-                                }
-                              },
-                            ),
-                            const SizedBox(height: 14),
-                          ],
-
                           // Start Date & End Date Row
                           Row(
                             children: [
@@ -385,13 +370,13 @@ class _EditAssignmentScreenContent extends StatelessWidget {
                               style: TextStyle(color: textThemeColor, fontSize: 13, fontWeight: FontWeight.bold),
                               decoration: InputDecoration(
                                 hintText: 'Enter city, address or location',
-                                hintStyle: TextStyle(color: silverText.withOpacity(0.5), fontSize: 12),
+                                hintStyle: TextStyle(color: silverText.withValues(alpha: 0.5), fontSize: 12),
                                 filled: true,
-                                fillColor: isDark ? const Color(0xFF03140A) : const Color(0xFFE8F5EE).withOpacity(0.5),
+                                fillColor: isDark ? const Color(0xFF03140A) : const Color(0xFFE8F5EE).withValues(alpha: 0.5),
                                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: goldAccent.withOpacity(0.3), width: 1),
+                                  borderSide: BorderSide(color: goldAccent.withValues(alpha: 0.3), width: 1),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
@@ -414,7 +399,7 @@ class _EditAssignmentScreenContent extends StatelessWidget {
                                 foregroundColor: Colors.white,
                                 shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(12),
-                                  side: BorderSide(color: goldAccent.withOpacity(0.5), width: 1),
+                                  side: BorderSide(color: goldAccent.withValues(alpha: 0.5), width: 1),
                                 ),
                                 elevation: 3,
                               ),

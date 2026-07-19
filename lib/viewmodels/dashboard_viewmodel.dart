@@ -53,6 +53,10 @@ class DashboardViewModel extends ChangeNotifier {
       final ranks = await repo.getSystemAttributeItems('ranks');
       final batteries = await repo.getSystemAttributeItems('batteries');
       
+      if (!trades.contains('All')) trades.insert(0, 'All');
+      if (!ranks.contains('All')) ranks.insert(0, 'All');
+      if (!batteries.contains('All')) batteries.insert(0, 'All');
+
       _tradesList = trades.isEmpty ? await MockDataManager().getTrades() : trades;
       _ranksList = ranks.isEmpty ? await MockDataManager().getRanks() : ranks;
       _batteriesList = batteries.isEmpty ? await MockDataManager().getBatteries() : batteries;

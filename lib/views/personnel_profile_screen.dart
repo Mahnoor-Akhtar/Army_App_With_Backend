@@ -5,7 +5,7 @@ import '../services/personnel_data_manager.dart';
 class PersonnelProfileScreen extends StatelessWidget {
   final Map<String, String> person;
 
-  const PersonnelProfileScreen({Key? key, required this.person}) : super(key: key);
+  const PersonnelProfileScreen({super.key, required this.person});
 
   @override
   Widget build(BuildContext context) {
@@ -96,10 +96,9 @@ class PersonnelProfileScreen extends StatelessWidget {
                 const Icon(Icons.calendar_today, size: 20),
                 const SizedBox(width: 8),
                 Text(
-                  '${status.startDate.day}/${status.startDate.month}/${status.startDate.year}' +
-                      (status.endDate != null
+                  '${status.startDate.day}/${status.startDate.month}/${status.startDate.year}${status.endDate != null
                           ? ' – ${status.endDate!.day}/${status.endDate!.month}/${status.endDate!.year}'
-                          : ' – Present'),
+                          : ' – Present'}',
                   style: TextStyle(color: textThemeColor, fontSize: 14),
                 ),
               ],

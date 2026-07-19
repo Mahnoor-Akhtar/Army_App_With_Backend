@@ -59,7 +59,7 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -210,6 +210,12 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
                       } else {
                         await viewModel.addBattery(val);
                       }
+                    } else if (type == 'Category') {
+                      if (existingValue != null && index != null) {
+                        await viewModel.editCategory(index, val);
+                      } else {
+                        await viewModel.addCategory(val);
+                      }
                     } else if (type == 'Rank') {
                       if (existingValue != null && index != null) {
                         await viewModel.editRank(
@@ -257,9 +263,11 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
           ElevatedButton(
             onPressed: () async {
               Navigator.pop(dialogContext);
-              if (type == 'Trade') await viewModel.deleteTrade(index);
-              else if (type == 'Rank') await viewModel.deleteRank(index);
+              if (type == 'Trade') {
+                await viewModel.deleteTrade(index);
+              } else if (type == 'Rank') await viewModel.deleteRank(index);
               else if (type == 'Battery') await viewModel.deleteBattery(index);
+              else if (type == 'Category') await viewModel.deleteCategory(index);
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             child: const Text('Delete',
@@ -377,6 +385,7 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
               Tab(text: 'Trades'),
               Tab(text: 'Ranks'),
               Tab(text: 'Batteries'),
+              Tab(text: 'Categories'),
             ],
           ),
         ),
@@ -388,6 +397,7 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
                   _buildList(context, 'Trade', viewModel.trades),
                   _buildList(context, 'Rank', viewModel.ranks),
                   _buildList(context, 'Battery', viewModel.batteries),
+                  _buildList(context, 'Category', viewModel.categories),
                 ],
               ),
         floatingActionButton: viewModel.isLoading
@@ -399,7 +409,9 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
                       ? 'Trade'
                       : idx == 1
                           ? 'Rank'
-                          : 'Battery';
+                          : idx == 2
+                              ? 'Battery'
+                              : 'Category';
                   _showAddEditDialog(context, type);
                 },
                 backgroundColor: widget.goldAccent,

@@ -108,6 +108,10 @@ CREATE TABLE personnel (
     name VARCHAR(150) NOT NULL,
     category VARCHAR(50) NOT NULL, -- e.g., 'Officers', 'JCOs', 'Clks'
     cl VARCHAR(50) NOT NULL,       -- Class/Group, e.g., 'Pb', 'Sdh', 'Ptn'
+    status_category VARCHAR(100) DEFAULT 'Present', -- Denormalized current status category
+    status_subcategory VARCHAR(100), -- Denormalized subcategory
+    status_start_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(), -- Denormalized start date
+    status_end_date TIMESTAMP WITH TIME ZONE, -- Denormalized end date
     remarks TEXT DEFAULT '',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -151,6 +155,27 @@ CREATE TRIGGER trigger_update_status_history_updated_at
 BEFORE UPDATE ON status_history
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
+
+-- Function to update personnel.status_category and dates
+CREATE OR REPLACE FUNCTION sync_personnel_status_category()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.end_date IS NULL THEN
+        UPDATE personnel 
+        SET status_category = NEW.category,
+            status_subcategory = NEW.subcategory,
+            status_start_date = NEW.start_date,
+            status_end_date = NEW.end_date
+        WHERE army_no = NEW.army_no;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trigger_sync_personnel_status
+AFTER INSERT OR UPDATE ON status_history
+FOR EACH ROW
+EXECUTE FUNCTION sync_personnel_status_category();
 
 CREATE INDEX idx_status_history_army_no ON status_history(army_no);
 CREATE INDEX idx_status_history_active ON status_history(army_no) WHERE (end_date IS NULL);
@@ -306,7 +331,6 @@ CREATE POLICY "Allow modification of system configurations" ON system_attributes
 --     p.cl,
 --     sh.category AS current_category,
 --     sh.subcategory AS current_subcategory,
---     sh.sub_subcategory AS current_sub_subcategory,
 --     sh.start_date,
 --     sh.destination
 -- FROM personnel p
@@ -329,11 +353,11 @@ CREATE POLICY "Allow modification of system configurations" ON system_attributes
 -- ─────────────────────────────────────────────────────────────────────────────
 -- BEGIN;
 --   UPDATE status_history
---   SET end_date = :change_timestamp
+--   SET end_date = :start_date
 --   WHERE army_no = :army_no AND end_date IS NULL;
---
+--   
 --   INSERT INTO status_history (army_no, category, subcategory, sub_subcategory, start_date, end_date, destination)
---   VALUES (:army_no, :new_category, :new_subcategory, :new_sub_subcategory, :change_timestamp, NULL, :destination);
+--   VALUES (:army_no, :category, :subcategory, :sub_subcategory, :start_date, :end_date, :destination);
 -- COMMIT;
 
 

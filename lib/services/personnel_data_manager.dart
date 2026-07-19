@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'personnel_data.dart';
 import 'supabase_repository.dart';
+import 'mock_data.dart';
 import '../models/person_status.dart';
 import '../models/group_model.dart';
 export '../models/person_status.dart'; // Re-export so existing imports of personnel_data_manager.dart still resolve PersonStatus
@@ -137,6 +138,97 @@ class PersonnelDataManager extends ChangeNotifier {
       _initializeHistory();
     }
     _loadCustomGroups();
+    
+    // Fetch latest personnel from database
+    _loadPersonnelFromSupabase();
+  }
+
+  Future<void> _loadPersonnelFromSupabase() async {
+    try {
+      final repo = SupabaseRepository();
+      final personnelList = await repo.getAllPersonnel();
+      
+      if (personnelList.isNotEmpty) {
+        nominalRollList.clear();
+        for (var p in personnelList) {
+          nominalRollList.add({
+            'armyNo': p.armyNo,
+            'rank': p.rank,
+            'name': p.name,
+            'trade': p.trade,
+            'category': p.category,
+            'cl': p.cl,
+            'battery': p.battery,
+            'avatar': p.profilePhoto ?? '',
+            'phone': p.phoneNumber ?? '',
+            'city': p.city ?? '',
+            'remarks': p.remarks ?? '',
+          });
+        }
+        
+        // Fetch current statuses AND full history from database for each person
+        final statusList = await repo.getCurrentPersonnelStatus();
+        final statusMap = { for (var s in statusList) s['army_no']: s };
+
+        for (var p in personnelList) {
+          final s = statusMap[p.armyNo];
+          if (s != null) {
+            // Only use status history fields (personnel table no longer has status fields)
+            final category = s['current_category'] ?? 'Present';
+            final subcategory = s['current_subcategory'];
+            final startDate = s['start_date'] != null ? DateTime.parse(s['start_date']) : DateTime.now();
+            
+            DateTime? endDate;
+            if (s['end_date'] != null) {
+              endDate = DateTime.tryParse(s['end_date'].toString());
+            } else if (s['status_remarks'] != null) {
+              final remarksStr = s['status_remarks'].toString();
+              final match = RegExp(r'Planned return: (\d{4}-\d{2}-\d{2})').firstMatch(remarksStr);
+              if (match != null) {
+                endDate = DateTime.tryParse(match.group(1)!);
+              }
+            }
+            
+            _statuses[p.armyNo] = PersonStatus(
+              category: category,
+              subcategory: subcategory,
+              destination: s['destination'],
+              startDate: startDate,
+              endDate: endDate,
+            );
+          } else if (!_statuses.containsKey(p.armyNo)) {
+            _statuses[p.armyNo] = PersonStatus(
+              category: 'Present',
+              startDate: DateTime.now(),
+              endDate: null,
+            );
+          }
+
+          // Load status history from database for this person
+          try {
+            final historyList = await repo.getStatusHistory(p.armyNo);
+            _history[p.armyNo] = historyList.map((h) => PersonStatus(
+              category: h.category,
+              subcategory: h.subcategory,
+              destination: h.destination,
+              startDate: h.startDate,
+              endDate: h.endDate,
+            )).toList();
+          } catch (e) {
+            if (kDebugMode) {
+              print('Error loading status history for ${p.armyNo}: $e');
+            }
+          }
+        }
+        saveToPrefs();
+        notifyListeners();
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading personnel from database: $e');
+      }
+      // Keep local data on failure
+    }
   }
 
   void saveToPrefs() {
@@ -181,14 +273,13 @@ class PersonnelDataManager extends ChangeNotifier {
   List<PersonStatus> _generateThreeMonthHistory(
     String armyNo, 
     String currentCategory, 
-    String? currentSub, 
-    String? currentSubSub
+    String? currentSub
   ) {
     // Don't generate dummy history; just return current status (history will come from database later
     final status = PersonStatus(
       category: currentCategory,
       subcategory: currentSub,
-      subSubcategory: currentSubSub,
+      
       startDate: DateTime.now(),
       endDate: null,
     );
@@ -201,8 +292,7 @@ class PersonnelDataManager extends ChangeNotifier {
       _history[armyNo] = _generateThreeMonthHistory(
         armyNo, 
         status.category, 
-        status.subcategory, 
-        status.subSubcategory
+        status.subcategory
       );
     });
   }
@@ -244,13 +334,12 @@ class PersonnelDataManager extends ChangeNotifier {
     return _statuses[armyNo]!;
   }
 
-  void updateStatus(String armyNo, PersonStatus newStatus) {
+  Future<void> updateStatus(String armyNo, PersonStatus newStatus) async {
     final oldStatus = _statuses[armyNo];
     if (oldStatus != null) {
       final finalOldStatus = PersonStatus(
         category: oldStatus.category,
         subcategory: oldStatus.subcategory,
-        subSubcategory: oldStatus.subSubcategory,
         startDate: oldStatus.startDate,
         endDate: newStatus.startDate,
       );
@@ -272,17 +361,66 @@ class PersonnelDataManager extends ChangeNotifier {
       _history[armyNo]!.add(newStatus);
     }
     saveToPrefs();
+
+    // Sync to database
+    try {
+      if (kDebugMode) {
+        print('Calling updatePersonnelStatus for $armyNo');
+        print('  category: ${newStatus.category}');
+        print('  subcategory: ${newStatus.subcategory}');
+        print('  startDate: ${newStatus.startDate}');
+      }
+      await SupabaseRepository().updatePersonnelStatus(
+        armyNo: armyNo,
+        category: newStatus.category,
+        subcategory: newStatus.subcategory,
+        destination: newStatus.destination,
+        startDate: newStatus.startDate,
+        endDate: newStatus.endDate,
+        createdBy: MockDataManager().username,
+      );
+      if (kDebugMode) {
+        print('Successfully updated status in database!');
+      }
+      
+      // Fetch latest data from database
+      await _loadPersonnelFromSupabase();
+
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('Error syncing personnel status to database: $e');
+        print('Stack trace: $stackTrace');
+      }
+    }
   }
 
-  List<PersonStatus> getHistory(String armyNo) {
+  Future<List<PersonStatus>> getHistory(String armyNo) async {
     if (!_history.containsKey(armyNo) || _history[armyNo]!.isEmpty) {
-      final current = getStatus(armyNo);
-      _history[armyNo] = _generateThreeMonthHistory(
-        armyNo, 
-        current.category, 
-        current.subcategory, 
-        current.subSubcategory
-      );
+      // Try to load from database first
+      try {
+        final repo = SupabaseRepository();
+        final historyList = await repo.getStatusHistory(armyNo);
+        if (historyList.isNotEmpty) {
+          _history[armyNo] = historyList.map((h) => PersonStatus(
+            category: h.category,
+            subcategory: h.subcategory,
+            destination: h.destination,
+            startDate: h.startDate,
+            endDate: h.endDate,
+          )).toList();
+        } else {
+          // If no history in database, use current status
+          final current = getStatus(armyNo);
+          _history[armyNo] = [current];
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error loading history from database: $e');
+        }
+        // Fallback to current status
+        final current = getStatus(armyNo);
+        _history[armyNo] = [current];
+      }
       saveToPrefs();
     }
     return _history[armyNo]!;
@@ -291,13 +429,11 @@ class PersonnelDataManager extends ChangeNotifier {
   List<Map<String, String>> getPeopleInNode({
     required String category,
     String? subcategory,
-    String? subSubcategory,
   }) {
     return nominalRollList.where((person) {
       final status = getStatus(person['armyNo'] ?? '');
       if (status.category != category) return false;
       if (subcategory != null && status.subcategory != subcategory) return false;
-      if (subSubcategory != null && status.subSubcategory != subSubcategory) return false;
       return true;
     }).toList();
   }
@@ -313,24 +449,52 @@ class PersonnelDataManager extends ChangeNotifier {
     }).length;
   }
 
-  int getCountForSubSubcategory(String categoryName, String subcategoryName, String subSubcategoryName) {
-    return nominalRollList.where((p) {
-      final status = getStatus(p['armyNo'] ?? '');
-      return status.category == categoryName &&
-             status.subcategory == subcategoryName &&
-             status.subSubcategory == subSubcategoryName;
-    }).length;
-  }
+
 
   void addMainCategory(String name) {
     if (!categoryHierarchy.containsKey(name)) {
       categoryHierarchy[name] = null;
+      saveToPrefs();
+      SupabaseRepository().syncStatusHierarchy(categoryHierarchy);
     }
   }
 
-  void addSubcategory(String category, String subcategory) {
+  /// Adds a subcategory (or sub-subcategory when [subSubcategory] is provided).
+  ///
+  /// - 2-arg form: adds [subcategory] under [category].
+  /// - 3-arg form: adds [subSubcategory] under [category] → [subcategory].
+  void addSubcategory(String category, String subcategory,
+      [String? subSubcategory]) {
     if (!categoryHierarchy.containsKey(category)) return;
-    
+
+    if (subSubcategory != null) {
+      // 3-level: add sub-subcategory under category -> subcategory
+      final current = categoryHierarchy[category];
+      if (current is Map) {
+        final map = Map<String, dynamic>.from(current);
+        final subList = map[subcategory];
+        if (subList is List) {
+          final list = List<String>.from(subList);
+          if (!list.contains(subSubcategory)) {
+            list.add(subSubcategory);
+            map[subcategory] = list;
+            categoryHierarchy[category] = map;
+          }
+        } else {
+          map[subcategory] = [subSubcategory];
+          categoryHierarchy[category] = map;
+        }
+      } else {
+        // Convert to map structure
+        categoryHierarchy[category] = {
+          subcategory: [subSubcategory],
+        };
+      }
+      saveToPrefs();
+      SupabaseRepository().syncStatusHierarchy(categoryHierarchy);
+      return;
+    }
+
     final current = categoryHierarchy[category];
     if (current == null) {
       categoryHierarchy[category] = [subcategory];
@@ -345,42 +509,13 @@ class PersonnelDataManager extends ChangeNotifier {
       if (!map.containsKey(subcategory)) {
         map[subcategory] = [];
         categoryHierarchy[category] = map;
-        saveToPrefs();
       }
     }
+    saveToPrefs();
+    SupabaseRepository().syncStatusHierarchy(categoryHierarchy);
   }
 
-  void addSubSubcategory(String category, String subcategory, String subSubcategory) {
-    if (!categoryHierarchy.containsKey(category)) return;
-    
-    final current = categoryHierarchy[category];
-    if (current == null || current is List) {
-      final List<String> oldSubs = current == null ? [] : List<String>.from(current as List);
-      final Map<String, List<String>> newMap = {};
-      for (var sub in oldSubs) {
-        newMap[sub] = [];
-      }
-      if (!newMap.containsKey(subcategory)) {
-        newMap[subcategory] = [subSubcategory];
-      } else {
-        newMap[subcategory]!.add(subSubcategory);
-      }
-      categoryHierarchy[category] = newMap;
-    } else if (current is Map) {
-      final map = Map<String, dynamic>.from(current);
-      if (!map.containsKey(subcategory)) {
-        map[subcategory] = [subSubcategory];
-      } else {
-        final List<String> list = List<String>.from(map[subcategory] as List);
-        if (!list.contains(subSubcategory)) {
-          list.add(subSubcategory);
-          map[subcategory] = list;
-        }
-      }
-      categoryHierarchy[category] = map;
-      saveToPrefs();
-    }
-  }
+
 
   void renameCategory(String oldName, String newName) {
     if (oldName == newName || !categoryHierarchy.containsKey(oldName)) return;
@@ -394,6 +529,8 @@ class PersonnelDataManager extends ChangeNotifier {
         status.category = newName;
       }
     }
+    saveToPrefs();
+    SupabaseRepository().syncStatusHierarchy(categoryHierarchy);
   }
 
   void deleteCategory(String name) {
@@ -406,14 +543,50 @@ class PersonnelDataManager extends ChangeNotifier {
       if (status.category == name) {
         status.category = 'Present';
         status.subcategory = null;
-        status.subSubcategory = null;
       }
     }
     saveToPrefs();
   }
 
-  void renameSubcategory(String category, String oldSub, String newSub) {
-    if (oldSub == newSub || !categoryHierarchy.containsKey(category)) return;
+  /// Renames a subcategory or sub-subcategory.
+  ///
+  /// - 3-arg form `(category, oldSub, newSub)`: renames a subcategory.
+  /// - 4-arg form `(category, parentSub, oldSubSub, newSubSub)`: renames a
+  ///   sub-subcategory inside [parentSub].
+  void renameSubcategory(String category, String oldSubOrParent,
+      String newSubOrOldSubSub,
+      [String? newSubSub]) {
+    if (!categoryHierarchy.containsKey(category)) return;
+
+    if (newSubSub != null) {
+      // 4-arg: rename sub-subcategory: oldSubOrParent=parentSub,
+      //        newSubOrOldSubSub=oldSubSub, newSubSub=newSubSub
+      final parentSub = oldSubOrParent;
+      final oldSubSub = newSubOrOldSubSub;
+      if (oldSubSub == newSubSub) return;
+      final current = categoryHierarchy[category];
+      if (current is Map) {
+        final map = Map<String, dynamic>.from(current);
+        final subList = map[parentSub];
+        if (subList is List) {
+          final list = List<String>.from(subList);
+          final idx = list.indexOf(oldSubSub);
+          if (idx != -1) {
+            list[idx] = newSubSub;
+            map[parentSub] = list;
+            categoryHierarchy[category] = map;
+          }
+        }
+      }
+      saveToPrefs();
+      SupabaseRepository().syncStatusHierarchy(categoryHierarchy);
+      return;
+    }
+
+    // 3-arg: rename subcategory
+    final oldSub = oldSubOrParent;
+    final newSub = newSubOrOldSubSub;
+    if (oldSub == newSub) return;
 
     final current = categoryHierarchy[category];
     if (current is List) {
@@ -438,11 +611,40 @@ class PersonnelDataManager extends ChangeNotifier {
         status.subcategory = newSub;
       }
     }
+    saveToPrefs();
+    SupabaseRepository().syncStatusHierarchy(categoryHierarchy);
   }
 
-  void deleteSubcategory(String category, String subcategory) {
+  /// Deletes a subcategory or sub-subcategory.
+  ///
+  /// - 2-arg form `(category, subcategory)`: deletes a subcategory.
+  /// - 3-arg form `(category, parentSub, subSubcategory)`: deletes a
+  ///   sub-subcategory inside [parentSub].
+  void deleteSubcategory(String category, String subOrParent,
+      [String? subSubcategory]) {
     if (!categoryHierarchy.containsKey(category)) return;
 
+    if (subSubcategory != null) {
+      // 3-arg: delete sub-subcategory
+      final parentSub = subOrParent;
+      final current = categoryHierarchy[category];
+      if (current is Map) {
+        final map = Map<String, dynamic>.from(current);
+        final subList = map[parentSub];
+        if (subList is List) {
+          final list = List<String>.from(subList);
+          list.remove(subSubcategory);
+          map[parentSub] = list.isEmpty ? null : list;
+          categoryHierarchy[category] = map;
+        }
+      }
+      saveToPrefs();
+      SupabaseRepository().syncStatusHierarchy(categoryHierarchy);
+      return;
+    }
+
+    // 2-arg: delete subcategory
+    final subcategory = subOrParent;
     final current = categoryHierarchy[category];
     if (current is List) {
       final list = List<String>.from(current);
@@ -458,67 +660,39 @@ class PersonnelDataManager extends ChangeNotifier {
       final status = _statuses[key]!;
       if (status.category == category && status.subcategory == subcategory) {
         status.subcategory = null;
-        status.subSubcategory = null;
       }
     }
+    saveToPrefs();
+    SupabaseRepository().syncStatusHierarchy(categoryHierarchy);
   }
 
-  void renameSubSubcategory(String category, String subcategory, String oldSubSub, String newSubSub) {
-    if (oldSubSub == newSubSub || !categoryHierarchy.containsKey(category)) return;
 
-    final current = categoryHierarchy[category];
-    if (current is Map) {
-      final map = Map<String, dynamic>.from(current);
-      if (map.containsKey(subcategory)) {
-        final List<String> list = List<String>.from(map[subcategory] as List);
-        final idx = list.indexOf(oldSubSub);
-        if (idx != -1) {
-          list[idx] = newSubSub;
-          map[subcategory] = list;
-          categoryHierarchy[category] = map;
-        }
-      }
-    }
-
-    for (var key in _statuses.keys) {
-      final status = _statuses[key]!;
-      if (status.category == category &&
-          status.subcategory == subcategory &&
-          status.subSubcategory == oldSubSub) {
-        status.subSubcategory = newSubSub;
-      }
-    }
-  }
-
-  void deleteSubSubcategory(String category, String subcategory, String subSubName) {
-    if (!categoryHierarchy.containsKey(category)) return;
-
-    final current = categoryHierarchy[category];
-    if (current is Map) {
-      final map = Map<String, dynamic>.from(current);
-      if (map.containsKey(subcategory)) {
-        final List<String> list = List<String>.from(map[subcategory] as List);
-        list.remove(subSubName);
-        map[subcategory] = list;
-        categoryHierarchy[category] = map;
-      }
-    }
-
-    for (var key in _statuses.keys) {
-      final status = _statuses[key]!;
-      if (status.category == category &&
-          status.subcategory == subcategory &&
-          status.subSubcategory == subSubName) {
-        status.subSubcategory = null;
-      }
-    }
-  }
 
   void addPerson(Map<String, String> person) {
     final armyNo = person['armyNo'] ?? '';
     if (nominalRollList.any((p) => p['armyNo'] == armyNo)) return;
     nominalRollList.add(person);
     saveToPrefs();
+
+    // Sync to database
+    SupabaseRepository().addPersonnel({
+      'army_no': person['armyNo'],
+      'rank': person['rank'],
+      'name': person['name'],
+      'trade': person['trade'],
+      'category': person['category'],
+      'cl': person['cl'],
+      'battery': person['battery'],
+      'phone_number': person['phone'],
+      'city': person['city'],
+      'remarks': person['remarks'],
+      'fighting_status': person['isFighting'] == 'true' ? 'Fighting' : 'Non-Fighting',
+      'profile_photo': person['avatar'],
+    }).catchError((e) {
+      if (kDebugMode) {
+        print('Error adding personnel to database: $e');
+      }
+    });
   }
 
   void editPerson(String oldArmyNo, Map<String, String> updatedPerson) {
@@ -539,6 +713,26 @@ class PersonnelDataManager extends ChangeNotifier {
       }
 
       saveToPrefs();
+
+      // Sync to database
+      SupabaseRepository().updatePersonnel(oldArmyNo, {
+        'army_no': updatedPerson['armyNo'],
+        'rank': updatedPerson['rank'],
+        'name': updatedPerson['name'],
+        'trade': updatedPerson['trade'],
+        'category': updatedPerson['category'],
+        'cl': updatedPerson['cl'],
+        'battery': updatedPerson['battery'],
+        'phone_number': updatedPerson['phone'],
+        'city': updatedPerson['city'],
+        'remarks': updatedPerson['remarks'],
+        'fighting_status': updatedPerson['isFighting'] == 'true' ? 'Fighting' : 'Non-Fighting',
+        'profile_photo': updatedPerson['avatar'],
+      }).catchError((e) {
+        if (kDebugMode) {
+          print('Error updating personnel in database: $e');
+        }
+      });
     }
   }
 
