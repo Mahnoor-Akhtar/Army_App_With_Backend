@@ -72,3 +72,6 @@ EXCEPTION WHEN OTHERS THEN
     );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Test the function (replace 'frukh123' with your actual current password)
+SELECT change_password('Frukh', 'frukh123', 'newpassword123');
