@@ -6,6 +6,7 @@ import 'supabase_repository.dart';
 import 'mock_data.dart';
 import '../models/person_status.dart';
 import '../models/group_model.dart';
+import '../models/status_history.dart';
 export '../models/person_status.dart'; // Re-export so existing imports of personnel_data_manager.dart still resolve PersonStatus
 export '../models/group_model.dart'; // Re-export GroupModel
 
@@ -170,6 +171,13 @@ class PersonnelDataManager extends ChangeNotifier {
         final statusList = await repo.getCurrentPersonnelStatus();
         final statusMap = { for (var s in statusList) s['army_no']: s };
 
+        // Fetch all status histories at once to avoid N+1 problem
+        final allHistories = await repo.getAllStatusHistory();
+        final historyMap = <String, List<StatusHistory>>{};
+        for (var h in allHistories) {
+          historyMap.putIfAbsent(h.armyNo, () => []).add(h);
+        }
+
         for (var p in personnelList) {
           final s = statusMap[p.armyNo];
           if (s != null) {
@@ -183,7 +191,7 @@ class PersonnelDataManager extends ChangeNotifier {
               endDate = DateTime.tryParse(s['end_date'].toString());
             } else if (s['status_remarks'] != null) {
               final remarksStr = s['status_remarks'].toString();
-              final match = RegExp(r'Planned return: (\d{4}-\d{2}-\d{2})').firstMatch(remarksStr);
+              final match = RegExp(r'(?:Planned return|Expected Return):\s*(\d{4}-\d{2}-\d{2})').firstMatch(remarksStr);
               if (match != null) {
                 endDate = DateTime.tryParse(match.group(1)!);
               }
@@ -204,9 +212,9 @@ class PersonnelDataManager extends ChangeNotifier {
             );
           }
 
-          // Load status history from database for this person
-          try {
-            final historyList = await repo.getStatusHistory(p.armyNo);
+          // Load status history from grouped map
+          final historyList = historyMap[p.armyNo] ?? [];
+          if (historyList.isNotEmpty) {
             _history[p.armyNo] = historyList.map((h) => PersonStatus(
               category: h.category,
               subcategory: h.subcategory,
@@ -214,10 +222,6 @@ class PersonnelDataManager extends ChangeNotifier {
               startDate: h.startDate,
               endDate: h.endDate,
             )).toList();
-          } catch (e) {
-            if (kDebugMode) {
-              print('Error loading status history for ${p.armyNo}: $e');
-            }
           }
         }
         saveToPrefs();
@@ -361,6 +365,7 @@ class PersonnelDataManager extends ChangeNotifier {
       _history[armyNo]!.add(newStatus);
     }
     saveToPrefs();
+    notifyListeners();
 
     // Sync to database
     try {
@@ -668,36 +673,48 @@ class PersonnelDataManager extends ChangeNotifier {
 
 
 
-  void addPerson(Map<String, String> person) {
+  Future<void> addPerson(Map<String, String> person) async {
     final armyNo = person['armyNo'] ?? '';
     if (nominalRollList.any((p) => p['armyNo'] == armyNo)) return;
     nominalRollList.add(person);
     saveToPrefs();
+    notifyListeners();
 
     // Sync to database
-    SupabaseRepository().addPersonnel({
-      'army_no': person['armyNo'],
-      'rank': person['rank'],
-      'name': person['name'],
-      'trade': person['trade'],
-      'category': person['category'],
-      'cl': person['cl'],
-      'battery': person['battery'],
-      'phone_number': person['phone'],
-      'city': person['city'],
-      'remarks': person['remarks'],
-      'fighting_status': person['isFighting'] == 'true' ? 'Fighting' : 'Non-Fighting',
-      'profile_photo': person['avatar'],
-    }).catchError((e) {
+    try {
+      await SupabaseRepository().addPersonnel({
+        'army_no': person['armyNo'],
+        'rank': person['rank'],
+        'name': person['name'],
+        'trade': person['trade'],
+        'category': person['category'],
+        'cl': person['cl'],
+        'battery': person['battery'],
+        'phone_number': person['phone'],
+        'city': person['city'],
+        'remarks': person['remarks'],
+        'fighting_status': person['isFighting'] == 'true' ? 'Fighting' : 'Non-Fighting',
+        'profile_photo': person['avatar'],
+      });
+      if (kDebugMode) {
+        print('Successfully added personnel to database with avatar.');
+      }
+      // Reload from database to confirm avatar and all fields are correctly saved
+      await _loadPersonnelFromSupabase();
+    } catch (e) {
       if (kDebugMode) {
         print('Error adding personnel to database: $e');
       }
-    });
+    }
   }
 
-  void editPerson(String oldArmyNo, Map<String, String> updatedPerson) {
+  Future<void> editPerson(String oldArmyNo, Map<String, String> updatedPerson) async {
     final idx = nominalRollList.indexWhere((p) => p['armyNo'] == oldArmyNo);
     if (idx != -1) {
+      // Capture the old city value before overwriting
+      final oldCity = nominalRollList[idx]['city'] ?? '';
+      final newCity = updatedPerson['city'] ?? '';
+
       nominalRollList[idx] = updatedPerson;
       final newArmyNo = updatedPerson['armyNo'] ?? '';
 
@@ -714,7 +731,7 @@ class PersonnelDataManager extends ChangeNotifier {
 
       saveToPrefs();
 
-      // Sync to database
+      // Sync basic profile data to personnel table
       SupabaseRepository().updatePersonnel(oldArmyNo, {
         'army_no': updatedPerson['armyNo'],
         'rank': updatedPerson['rank'],
@@ -733,6 +750,27 @@ class PersonnelDataManager extends ChangeNotifier {
           print('Error updating personnel in database: $e');
         }
       });
+
+      // If the location/city has changed, also update the destination
+      // on the currently active status_history row so the assignment
+      // record always reflects the latest location.
+      final effectiveArmyNo = (newArmyNo.isNotEmpty) ? newArmyNo : oldArmyNo;
+      if (oldCity != newCity) {
+        try {
+          await SupabaseRepository().updateStatusDestination(
+            armyNo: effectiveArmyNo,
+            destination: newCity.isEmpty ? null : newCity,
+            updatedBy: MockDataManager().username,
+          );
+          if (kDebugMode) {
+            print('Status destination updated to "$newCity" for $effectiveArmyNo');
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('Error updating status destination in database: $e');
+          }
+        }
+      }
     }
   }
 

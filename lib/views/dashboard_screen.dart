@@ -27,6 +27,7 @@ import '../viewmodels/nominal_roll_viewmodel.dart';
 import '../viewmodels/analysis_viewmodel.dart';
 import 'personnel_profile_screen.dart';
 import '../viewmodels/edit_tab_viewmodel.dart';
+import '../services/supabase_repository.dart';
 import 'package:open_file/open_file.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -381,10 +382,33 @@ class _DashboardScreenState extends State<DashboardScreen>
                     enabled: false,
                     child: Row(
                       children: [
-                        const Icon(
-                          Icons.person,
-                          color: Color(0xFFCD9B2D),
-                          size: 18,
+                        Builder(
+                          builder: (context) {
+                            final adminArmyNo = MockDataManager().adminArmyNo ?? '';
+                            final adminPerson = nominalRollList.firstWhere(
+                              (p) => p['armyNo'] == adminArmyNo,
+                              orElse: () => <String, String>{},
+                            );
+                            final adminAvatar = adminPerson['avatar'] ?? '';
+                            return Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: const Color(0xFFCD9B2D).withValues(alpha: 0.5),
+                                  width: 1.2,
+                                ),
+                              ),
+                              child: ClipOval(
+                                child: SizedBox(
+                                  width: 28,
+                                  height: 28,
+                                  child: _buildAvatarImage(adminAvatar),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(width: 8),
                         Text(
@@ -440,20 +464,35 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
                   ),
                 ],
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: const Color(0xFFCD9B2D).withValues(alpha: 0.5),
-                      width: 1.5,
-                    ),
-                    image: const DecorationImage(
-                      image: AssetImage('assets/images/profile_avatar.jpg'),
-                      fit: BoxFit.cover,
-                    ),
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    // Find logged-in user's profile photo from nominalRollList
+                    final adminArmyNo = MockDataManager().adminArmyNo ?? '';
+                    final adminPerson = nominalRollList.firstWhere(
+                      (p) => p['armyNo'] == adminArmyNo,
+                      orElse: () => <String, String>{},
+                    );
+                    final adminAvatar = adminPerson['avatar'] ?? '';
+
+                    return Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: const Color(0xFFCD9B2D).withValues(alpha: 0.5),
+                          width: 1.5,
+                        ),
+                      ),
+                      child: ClipOval(
+                        child: SizedBox(
+                          width: 36,
+                          height: 36,
+                          child: _buildAvatarImage(adminAvatar),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
@@ -6642,10 +6681,16 @@ class _DashboardScreenState extends State<DashboardScreen>
     }
     String fightingSelection = isFighting ? 'Fighting' : 'Non Fighting';
 
-    // Load dynamic trades from MockDataManager (same source as Manage App Attributes)
-    final List<String> rawTrades = await mockData.getTrades();
+    // Load trades from Supabase (authoritative source), fallback to SharedPreferences
+    List<String> rawTrades = [];
+    try {
+      rawTrades = await SupabaseRepository().getSystemAttributeItems('trades');
+    } catch (_) {}
+    if (rawTrades.isEmpty) {
+      rawTrades = await mockData.getTrades();
+    }
     final List<String> trades = rawTrades
-        .where((t) => t.toLowerCase() != 'all')
+        .where((t) => t.toLowerCase() != 'all' && t.trim().isNotEmpty)
         .toList();
 
     String tradeSelection =
@@ -6654,10 +6699,17 @@ class _DashboardScreenState extends State<DashboardScreen>
       tradeSelection = trades.first;
     }
 
-    // Load dynamic ranks from MockDataManager — exclude 'All' and category headers (items starting with spaces are sub-ranks; show trimmed)
-    final List<String> rawRanks = await mockData.getRanks();
+    // Load ranks from Supabase (authoritative source), fallback to SharedPreferences
+    List<String> rawRanks = [];
+    try {
+      rawRanks = await SupabaseRepository().getSystemAttributeItems('ranks');
+    } catch (_) {}
+    if (rawRanks.isEmpty) {
+      rawRanks = await mockData.getRanks();
+    }
+    // Keep only actual rank entries (trim leading spaces); exclude 'All' and blank
     final List<String> ranks = rawRanks
-        .where((r) => r.toLowerCase() != 'all' && r.startsWith(' '))
+        .where((r) => r.toLowerCase() != 'all' && r.trim().isNotEmpty)
         .map((r) => r.trim())
         .toList();
 
@@ -6672,7 +6724,26 @@ class _DashboardScreenState extends State<DashboardScreen>
       classes.add(clSelection);
     }
 
-    String batterySelection = personToEdit?['battery'] ?? (personToEdit != null ? _getBattery(personToEdit) : 'HQ Bty');
+    // Load batteries from Supabase (authoritative source), fallback to hardcoded
+    List<String> rawBatteries = [];
+    try {
+      rawBatteries = await SupabaseRepository().getSystemAttributeItems('batteries');
+    } catch (_) {}
+    if (rawBatteries.isEmpty) {
+      rawBatteries = await mockData.getBatteries();
+    }
+    final List<String> batteries = rawBatteries
+        .where((b) => b.toLowerCase() != 'all' && b.trim().isNotEmpty)
+        .toList();
+    // Fallback to hardcoded if still empty
+    if (batteries.isEmpty) {
+      batteries.addAll(['HQ Bty', 'P Bty', 'Q Bty', 'R Bty']);
+    }
+
+    String batterySelection = personToEdit?['battery'] ?? (personToEdit != null ? _getBattery(personToEdit) : '');
+    if (batterySelection.isEmpty || !batteries.contains(batterySelection)) {
+      batterySelection = batteries.first;
+    }
 
     String categorySelection = personToEdit?['category'] ?? 'Gnrs';
     final List<String> categories = [
@@ -7095,24 +7166,14 @@ class _DashboardScreenState extends State<DashboardScreen>
                               fontSize: 12,
                             ),
                             isExpanded: true,
-                            items: const [
-                              DropdownMenuItem(
-                                value: 'HQ Bty',
-                                child: Text('HQ Bty'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'P Bty',
-                                child: Text('P Bty'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'Q Bty',
-                                child: Text('Q Bty'),
-                              ),
-                              DropdownMenuItem(
-                                value: 'R Bty',
-                                child: Text('R Bty'),
-                              ),
-                            ],
+                            items: batteries
+                                .map(
+                                  (b) => DropdownMenuItem(
+                                    value: b,
+                                    child: Text(b),
+                                  ),
+                                )
+                                .toList(),
                             onChanged: (val) {
                               if (val != null) {
                                 setDialogState(() {
@@ -7173,7 +7234,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
                     final armyNo = armyNoController.text.trim();
                     final name = nameController.text.trim();
 
@@ -7204,9 +7265,9 @@ class _DashboardScreenState extends State<DashboardScreen>
                     };
 
                     if (personToEdit == null) {
-                      manager.addPerson(dataMap);
+                      await manager.addPerson(dataMap);
                     } else {
-                      manager.editPerson(personToEdit['armyNo']!, dataMap);
+                      await manager.editPerson(personToEdit['armyNo']!, dataMap);
                     }
 
                     setState(() {});
@@ -12211,12 +12272,12 @@ class PersonnelIdCardScreen extends StatelessWidget {
     );
   }
 
-  void _updatePersonAvatar(
+  Future<void> _updatePersonAvatar(
     Map<String, String> person,
     String avatarUrl,
     Map<String, String> localPersonData,
     void Function(void Function()) setScreenState,
-  ) {
+  ) async {
     final armyNo = person['armyNo'] ?? '';
     if (armyNo.isEmpty) return;
 
@@ -12224,7 +12285,7 @@ class PersonnelIdCardScreen extends StatelessWidget {
     final updatedPerson = Map<String, String>.from(person);
     updatedPerson['avatar'] = avatarUrl;
 
-    manager.editPerson(armyNo, updatedPerson);
+    await manager.editPerson(armyNo, updatedPerson);
 
     setScreenState(() {
       localPersonData['avatar'] = avatarUrl;

@@ -43,16 +43,33 @@ class SupabaseRepository {
   }) async {
     final now = DateTime.now().toIso8601String();
     
+    // 0. Fetch active status to prevent check constraint violations
+    final activeStatusResponse = await _db
+        .from('status_history')
+        .select('start_date')
+        .eq('army_no', armyNo)
+        .isFilter('end_date', null)
+        .maybeSingle();
+
+    String closeDateStr = startDate?.toIso8601String() ?? now;
+    if (activeStatusResponse != null) {
+      final activeStartDate = DateTime.parse(activeStatusResponse['start_date'] as String);
+      final newStartDate = startDate ?? DateTime.now();
+      if (newStartDate.isBefore(activeStartDate)) {
+        closeDateStr = activeStartDate.toIso8601String();
+      }
+    }
+
     // 1. Close current active status
     await _db
         .from('status_history')
         .update({
-          'end_date': startDate?.toIso8601String() ?? now,
+          'end_date': closeDateStr,
           'updated_at': now,
           'updated_by': createdBy,
         })
         .eq('army_no', armyNo)
-        .filter('end_date', 'is', null);
+        .isFilter('end_date', null);
 
     // If there is an expected endDate, append it to remarks
     String finalRemarks = remarks ?? '';
@@ -80,11 +97,40 @@ class SupabaseRepository {
     });
   }
 
+  /// Updates only the [destination] field on the currently active (end_date IS NULL)
+  /// status_history row for [armyNo]. Used when a personnel's location / city
+  /// is changed from the profile edit form.
+  Future<void> updateStatusDestination({
+    required String armyNo,
+    required String? destination,
+    String? updatedBy,
+  }) async {
+    final now = DateTime.now().toIso8601String();
+    await _db
+        .from('status_history')
+        .update({
+          'destination': destination,
+          'updated_at': now,
+          'updated_by': updatedBy,
+        })
+        .eq('army_no', armyNo)
+        .isFilter('end_date', null);
+  }
+
   Future<List<StatusHistory>> getStatusHistory(String armyNo) async {
     final response = await _db
         .from('status_history')
         .select()
         .eq('army_no', armyNo)
+        .order('start_date', ascending: false);
+
+    return (response as List).map((json) => StatusHistory.fromJson(json)).toList();
+  }
+
+  Future<List<StatusHistory>> getAllStatusHistory() async {
+    final response = await _db
+        .from('status_history')
+        .select()
         .order('start_date', ascending: false);
 
     return (response as List).map((json) => StatusHistory.fromJson(json)).toList();

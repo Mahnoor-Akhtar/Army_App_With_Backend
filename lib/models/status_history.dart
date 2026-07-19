@@ -33,7 +33,7 @@ class StatusHistory {
       parsedEndDate = DateTime.parse(json['end_date'] as String);
     } else if (json['remarks'] != null) {
       final remarksStr = json['remarks'] as String;
-      final match = RegExp(r'Planned return: (\d{4}-\d{2}-\d{2})').firstMatch(remarksStr);
+      final match = RegExp(r'(?:Planned return|Expected Return):\s*(\d{4}-\d{2}-\d{2})').firstMatch(remarksStr);
       if (match != null) {
         parsedEndDate = DateTime.tryParse(match.group(1)!);
       }
