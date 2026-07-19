@@ -3926,9 +3926,40 @@ class _DashboardScreenState extends State<DashboardScreen>
         return StatefulBuilder(
           builder: (statefulContext, setDialogState) {
             return FutureBuilder<List<Map<String, dynamic>>>(
-              future: MockDataManager().getCommandGroup(),
+              future: SupabaseRepository().getCommandGroup(),
               builder: (context, snapshot) {
-                final group = snapshot.data ?? [];
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return AlertDialog(
+                    backgroundColor: isDark ? const Color(0xFF0A2214) : Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(
+                        color: goldAccent.withValues(alpha: 0.3),
+                        width: 1.2,
+                      ),
+                    ),
+                    content: const SizedBox(
+                      height: 100,
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFD4AF37)),
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                // Map database keys to app keys
+                final dbGroup = snapshot.data ?? [];
+                final group = dbGroup.map((slot) {
+                  return {
+                    'slotId': slot['slot_id'],
+                    'role': slot['role'],
+                    'armyNo': slot['army_no'],
+                    'username': slot['username'],
+                    'password': slot['password_hash'],
+                  };
+                }).toList();
 
                 return AlertDialog(
                   backgroundColor: isDark
@@ -3942,7 +3973,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     ),
                   ),
                   title: Text(
-                    'MANAGE COMMAND GROUP (12 MEMBERS)',
+                    'MANAGE COMMAND GROUP (${group.length} MEMBERS)',
                     style: TextStyle(
                       color: goldAccent,
                       fontWeight: FontWeight.bold,
@@ -4071,6 +4102,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                                     _showSelectSoldierAdminDialog(
                                                       pageContext,
                                                       slotId,
+                                                      slotRole,
                                                       isDark,
                                                       textThemeColor,
                                                       silverText,
@@ -4098,7 +4130,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                                     _showEditSlotCredentialsDialog(
                                                       pageContext,
                                                       statefulContext,
-                                                      slotId,
+                                                      slot,
                                                       details,
                                                       isDark,
                                                       textThemeColor,
@@ -4122,10 +4154,34 @@ class _DashboardScreenState extends State<DashboardScreen>
                                                 size: 18,
                                               ),
                                               onPressed: () async {
+                                                bool dbSuccess = true;
+                                                try {
+                                                  await SupabaseRepository()
+                                                      .clearSlot(slotId);
+                                                } catch (e) {
+                                                  dbSuccess = false;
+                                                  print('Database clear failed: $e');
+                                                }
                                                 await MockDataManager()
                                                     .clearSlot(slotId);
+                                                // Refresh the dialog
                                                 setDialogState(() {});
+                                                // Refresh the main screen
                                                 setState(() {});
+
+                                                if (!pageContext.mounted) return;
+                                                ScaffoldMessenger.of(pageContext).showSnackBar(
+                                                  SnackBar(
+                                                    content: Text(
+                                                      dbSuccess
+                                                          ? 'Slot cleared successfully!'
+                                                          : 'Cleared locally. DB sync failed (check RLS policy).',
+                                                    ),
+                                                    backgroundColor: dbSuccess
+                                                        ? const Color(0xFF0C5A32)
+                                                        : Colors.orange.shade800,
+                                                  ),
+                                                );
                                               },
                                               constraints:
                                                   const BoxConstraints(),
@@ -4169,7 +4225,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void _showEditSlotCredentialsDialog(
     BuildContext pageContext,
     BuildContext manageAdminsContext,
-    int slotId,
+    Map<String, dynamic> slot,
     String displayName,
     bool isDark,
     Color textThemeColor,
@@ -4177,21 +4233,21 @@ class _DashboardScreenState extends State<DashboardScreen>
     Color goldAccent,
     Color valueGreenColor,
   ) {
+    final slotId = slot['slotId'] as int;
+    final armyNo = slot['armyNo'] as String? ?? '';
+    final currentUsername = slot['username'] as String? ?? '';
+    final currentPassword = slot['password'] as String? ?? '';
+    final currentRole = slot['role'] as String? ?? 'user';
+
+    final userController = TextEditingController(text: currentUsername);
+    final passController = TextEditingController(text: currentPassword);
+    String selectedRole = currentRole;
+
     showDialog(
       context: pageContext,
       builder: (context) {
-        return FutureBuilder<List<Map<String, dynamic>>>(
-          future: MockDataManager().getCommandGroup(),
-          builder: (context, snapshot) {
-            final group = snapshot.data ?? [];
-            final slot = group.firstWhere((s) => s['slotId'] == slotId);
-            final armyNo = slot['armyNo'] as String? ?? '';
-            final currentUsername = slot['username'] as String? ?? '';
-            final currentPassword = slot['password'] as String? ?? '123456';
-
-            final userController = TextEditingController(text: currentUsername);
-            final passController = TextEditingController(text: currentPassword);
-
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
             return AlertDialog(
               backgroundColor: isDark ? const Color(0xFF0A2214) : Colors.white,
               shape: RoundedRectangleBorder(
@@ -4272,12 +4328,70 @@ class _DashboardScreenState extends State<DashboardScreen>
                       ),
                     ),
                   ),
+                   const SizedBox(height: 12),
+                  if (slotId == 1)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        'ROLE: SUPER ADMIN (LOCKED)',
+                        style: TextStyle(
+                          color: goldAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      value: selectedRole == 'superadmin' ? 'admin' : selectedRole,
+                      dropdownColor: isDark ? const Color(0xFF0A2214) : Colors.white,
+                      style: TextStyle(color: textThemeColor, fontSize: 13),
+                      decoration: InputDecoration(
+                        labelText: 'Role',
+                        labelStyle: TextStyle(color: goldAccent, fontSize: 11),
+                        filled: true,
+                        fillColor: isDark
+                            ? const Color(0xFF03140A)
+                            : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: goldAccent.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: goldAccent),
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'admin',
+                          child: Text('Admin'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'user',
+                          child: Text('User'),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            selectedRole = val;
+                          });
+                        }
+                      },
+                    ),
                 ],
               ),
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(context);
+                    Navigator.pop(dialogContext);
                     _showManageAdminsDialog(
                       pageContext,
                       isDark,
@@ -4298,7 +4412,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     final newPassword = passController.text;
 
                     if (newUsername.isEmpty || newPassword.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
                         const SnackBar(
                           content: Text('Fields cannot be empty.'),
                         ),
@@ -4310,7 +4424,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                     if (textLower == 'superadmin' ||
                         textLower == 'admin' ||
                         textLower == 'user') {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
                         const SnackBar(
                           content: Text('Cannot overwrite system accounts.'),
                         ),
@@ -4320,15 +4434,21 @@ class _DashboardScreenState extends State<DashboardScreen>
 
                     // Check duplicate usernames in command group
                     var duplicate = false;
-                    for (var s in group) {
-                      if (s['slotId'] != slotId &&
-                          s['username'].toString().toLowerCase() == textLower) {
-                        duplicate = true;
-                        break;
+                    try {
+                      final group = await SupabaseRepository().getCommandGroup();
+                      for (var s in group) {
+                        if (s['slot_id'] != slotId &&
+                            s['username']?.toString().toLowerCase() == textLower) {
+                          duplicate = true;
+                          break;
+                        }
                       }
+                    } catch (e) {
+                      // fallback
                     }
+
                     if (duplicate) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
                         const SnackBar(
                           content: Text('Username already taken.'),
                         ),
@@ -4336,16 +4456,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                       return;
                     }
 
+                    bool dbSuccess = true;
                     try {
                       await SupabaseRepository().updateSlotCredentials(
                         slotId,
                         armyNo,
                         newUsername,
                         newPassword,
+                        selectedRole,
                       );
                     } catch (e) {
-                      // Silently continue if Supabase update fails or table doesn't exist yet, 
-                      // but ideally it should succeed.
+                      dbSuccess = false;
+                      print('Database update failed: $e');
                     }
 
                     await MockDataManager().assignSlot(
@@ -4353,10 +4475,11 @@ class _DashboardScreenState extends State<DashboardScreen>
                       armyNo,
                       newUsername,
                       newPassword,
+                      selectedRole,
                     );
 
-                    if (!context.mounted) return;
-                    Navigator.pop(context);
+                    if (!dialogContext.mounted) return;
+                    Navigator.pop(dialogContext);
                     _showManageAdminsDialog(
                       pageContext,
                       isDark,
@@ -4367,9 +4490,13 @@ class _DashboardScreenState extends State<DashboardScreen>
                     );
 
                     ScaffoldMessenger.of(pageContext).showSnackBar(
-                      const SnackBar(
-                        content: Text('Slot credentials updated successfully!'),
-                        backgroundColor: Color(0xFF0C5A32),
+                      SnackBar(
+                        content: Text(
+                          dbSuccess
+                              ? 'Slot credentials updated successfully!'
+                              : 'Updated locally. DB sync failed (check RLS policy).',
+                        ),
+                        backgroundColor: dbSuccess ? const Color(0xFF0C5A32) : Colors.orange.shade800,
                       ),
                     );
                   },
@@ -4588,6 +4715,7 @@ class _DashboardScreenState extends State<DashboardScreen>
   void _showSelectSoldierAdminDialog(
     BuildContext pageContext,
     int slotId,
+    String slotRole,
     bool isDark,
     Color textThemeColor,
     Color silverText,
@@ -4602,13 +4730,13 @@ class _DashboardScreenState extends State<DashboardScreen>
         return StatefulBuilder(
           builder: (statefulContext, setDialogState) {
             return FutureBuilder<List<Map<String, dynamic>>>(
-              future: MockDataManager().getCommandGroup(),
+              future: SupabaseRepository().getCommandGroup(),
               builder: (context, snapshot) {
                 final group = snapshot.data ?? [];
                 // Exclude soldiers already assigned to any slot
                 final assignedArmyNos = group
-                    .where((s) => s['armyNo'] != null)
-                    .map((s) => s['armyNo'] as String)
+                    .where((s) => s['army_no'] != null)
+                    .map((s) => s['army_no'] as String)
                     .toList();
 
                 final filtered = nominalRollList.where((p) {
@@ -4757,6 +4885,7 @@ class _DashboardScreenState extends State<DashboardScreen>
                                                   pageContext,
                                                   statefulContext,
                                                   slotId,
+                                                  slotRole,
                                                   armyNo,
                                                   rank,
                                                   name,
@@ -4840,6 +4969,7 @@ class _DashboardScreenState extends State<DashboardScreen>
     BuildContext pageContext,
     BuildContext statefulContext,
     int slotId,
+    String slotRole,
     String armyNo,
     String rank,
     String name,
@@ -4851,188 +4981,273 @@ class _DashboardScreenState extends State<DashboardScreen>
   ) {
     final userController = TextEditingController(text: armyNo);
     final passController = TextEditingController(text: '123456');
+    String selectedRole = slotRole;
 
     showDialog(
       context: pageContext,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF0A2214) : Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: goldAccent.withValues(alpha: 0.3),
-              width: 1.2,
-            ),
-          ),
-          title: Text(
-            'SET ADMIN CREDENTIALS',
-            style: TextStyle(
-              color: goldAccent,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              letterSpacing: 1.0,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Assign login credentials for $rank $name ($armyNo).',
-                style: TextStyle(color: silverText, fontSize: 11),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                controller: userController,
-                style: TextStyle(color: textThemeColor, fontSize: 13),
-                decoration: InputDecoration(
-                  labelText: 'Username',
-                  labelStyle: TextStyle(color: goldAccent, fontSize: 11),
-                  filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF03140A)
-                      : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: goldAccent.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: goldAccent),
-                  ),
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF0A2214) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: goldAccent.withValues(alpha: 0.3),
+                  width: 1.2,
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: passController,
-                style: TextStyle(color: textThemeColor, fontSize: 13),
-                decoration: InputDecoration(
-                  labelText: 'Password',
-                  labelStyle: TextStyle(color: goldAccent, fontSize: 11),
-                  filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF03140A)
-                      : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: goldAccent.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: goldAccent),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _showSelectSoldierAdminDialog(
-                  pageContext,
-                  slotId,
-                  isDark,
-                  textThemeColor,
-                  silverText,
-                  goldAccent,
-                  valueGreenColor,
-                );
-              },
-              child: Text(
-                'CANCEL',
-                style: TextStyle(color: silverText, fontSize: 12),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                final username = userController.text.trim();
-                final password = passController.text;
-
-                if (username.isEmpty || password.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Fields cannot be empty.')),
-                  );
-                  return;
-                }
-
-                final textLower = username.toLowerCase();
-                if (textLower == 'superadmin' ||
-                    textLower == 'admin' ||
-                    textLower == 'user') {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Cannot overwrite system accounts.'),
-                    ),
-                  );
-                  return;
-                }
-
-                final group = await MockDataManager().getCommandGroup();
-                if (!context.mounted) return;
-                var duplicate = false;
-                for (var s in group) {
-                  if (s['username'].toString().toLowerCase() == textLower) {
-                    duplicate = true;
-                    break;
-                  }
-                }
-                if (duplicate) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Username already taken.')),
-                  );
-                  return;
-                }
-
-                await MockDataManager().assignSlot(
-                  slotId,
-                  armyNo,
-                  username,
-                  password,
-                );
-                setState(() {});
-
-                if (!context.mounted) return;
-                Navigator.pop(context);
-                _showManageAdminsDialog(
-                  pageContext,
-                  isDark,
-                  textThemeColor,
-                  silverText,
-                  goldAccent,
-                  valueGreenColor,
-                );
-
-                ScaffoldMessenger.of(pageContext).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      '$rank $name is now assigned to Slot $slotId!',
-                    ),
-                    backgroundColor: const Color(0xFF0C5A32),
-                  ),
-                );
-              },
-              child: Text(
-                'CREATE',
+              title: Text(
+                'SET ADMIN CREDENTIALS',
                 style: TextStyle(
                   color: goldAccent,
                   fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                  fontSize: 14,
+                  letterSpacing: 1.0,
                 ),
               ),
-            ),
-          ],
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Assign login credentials for $rank $name ($armyNo).',
+                    style: TextStyle(color: silverText, fontSize: 11),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: userController,
+                    style: TextStyle(color: textThemeColor, fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'Username',
+                      labelStyle: TextStyle(color: goldAccent, fontSize: 11),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF03140A)
+                          : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: goldAccent.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: goldAccent),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: passController,
+                    style: TextStyle(color: textThemeColor, fontSize: 13),
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      labelStyle: TextStyle(color: goldAccent, fontSize: 11),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF03140A)
+                          : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: goldAccent.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: goldAccent),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  if (slotId == 1)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Text(
+                        'ROLE: SUPER ADMIN (LOCKED)',
+                        style: TextStyle(
+                          color: goldAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    )
+                  else
+                    DropdownButtonFormField<String>(
+                      value: selectedRole == 'superadmin' ? 'admin' : selectedRole,
+                      dropdownColor: isDark ? const Color(0xFF0A2214) : Colors.white,
+                      style: TextStyle(color: textThemeColor, fontSize: 13),
+                      decoration: InputDecoration(
+                        labelText: 'Role',
+                        labelStyle: TextStyle(color: goldAccent, fontSize: 11),
+                        filled: true,
+                        fillColor: isDark
+                            ? const Color(0xFF03140A)
+                            : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 8,
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(
+                            color: goldAccent.withValues(alpha: 0.15),
+                          ),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: goldAccent),
+                        ),
+                      ),
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'admin',
+                          child: Text('Admin'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'user',
+                          child: Text('User'),
+                        ),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) {
+                          setDialogState(() {
+                            selectedRole = val;
+                          });
+                        }
+                      },
+                    ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                    _showSelectSoldierAdminDialog(
+                      pageContext,
+                      slotId,
+                      slotRole,
+                      isDark,
+                      textThemeColor,
+                      silverText,
+                      goldAccent,
+                      valueGreenColor,
+                    );
+                  },
+                  child: Text(
+                    'CANCEL',
+                    style: TextStyle(color: silverText, fontSize: 12),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () async {
+                    final username = userController.text.trim();
+                    final password = passController.text;
+
+                    if (username.isEmpty || password.isEmpty) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('Fields cannot be empty.')),
+                      );
+                      return;
+                    }
+
+                    final textLower = username.toLowerCase();
+                    if (textLower == 'superadmin' ||
+                        textLower == 'admin' ||
+                        textLower == 'user') {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                          content: Text('Cannot overwrite system accounts.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    var duplicate = false;
+                    try {
+                      final group = await SupabaseRepository().getCommandGroup();
+                      for (var s in group) {
+                        if (s['username']?.toString().toLowerCase() == textLower) {
+                          duplicate = true;
+                          break;
+                        }
+                      }
+                    } catch (e) {
+                      // fallback
+                    }
+
+                    if (duplicate) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(content: Text('Username already taken.')),
+                      );
+                      return;
+                    }
+
+                    bool dbSuccess = true;
+                    try {
+                      await SupabaseRepository().assignSlot(
+                        slotId,
+                        armyNo,
+                        username,
+                        password,
+                        selectedRole,
+                      );
+                    } catch (e) {
+                      dbSuccess = false;
+                      print('Database assign failed: $e');
+                    }
+
+                    await MockDataManager().assignSlot(
+                      slotId,
+                      armyNo,
+                      username,
+                      password,
+                      selectedRole,
+                    );
+                    setState(() {});
+
+                    if (!dialogContext.mounted) return;
+                    Navigator.pop(dialogContext);
+                    _showManageAdminsDialog(
+                      pageContext,
+                      isDark,
+                      textThemeColor,
+                      silverText,
+                      goldAccent,
+                      valueGreenColor,
+                    );
+
+                    ScaffoldMessenger.of(pageContext).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          dbSuccess
+                              ? '$rank $name is now assigned to Slot $slotId with role ${selectedRole.toUpperCase()}!'
+                              : 'Assigned locally. DB sync failed (check RLS policy).',
+                        ),
+                        backgroundColor: dbSuccess ? const Color(0xFF0C5A32) : Colors.orange.shade800,
+                      ),
+                    );
+                  },
+                  child: Text(
+                    'CREATE',
+                    style: TextStyle(
+                      color: goldAccent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );

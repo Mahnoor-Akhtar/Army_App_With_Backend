@@ -167,11 +167,12 @@ class SupabaseRepository {
     }
   }
 
-  Future<void> updateSlotCredentials(int slotId, String armyNo, String username, String plainPassword) async {
+  Future<void> updateSlotCredentials(int slotId, String armyNo, String username, String plainPassword, String role) async {
     await _db.from('command_slots').update({
       'army_no': armyNo.isEmpty ? null : armyNo,
       'username': username,
       'password_hash': plainPassword,
+      'role': role,
     }).eq('slot_id', slotId);
   }
 
@@ -296,5 +297,89 @@ class SupabaseRepository {
     }
 
     return hierarchy;
+  }
+
+  Future<List<Map<String, dynamic>>> getCommandGroup() async {
+    List<Map<String, dynamic>> list = [];
+    try {
+      final response = await _db.from('command_slots').select().order('slot_id');
+      list = List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('Error selecting command_slots: $e');
+    }
+
+    final existingIds = list.map((s) => s['slot_id'] as int).toSet();
+    bool needUpdate = false;
+    for (int i = 1; i <= 12; i++) {
+      if (!existingIds.contains(i)) {
+        needUpdate = true;
+        try {
+          String defaultRole = 'user';
+          if (i == 1) {
+            defaultRole = 'superadmin';
+          } else if (i >= 2 && i <= 5) {
+            defaultRole = 'admin';
+          }
+
+          await _db.from('command_slots').upsert({
+            'slot_id': i,
+            'role': defaultRole,
+            'army_no': null,
+            'username': 'slot$i',
+            'password_hash': '123456',
+          });
+        } catch (e) {
+          print('Error self-healing slot $i in database: $e');
+          // If database upsert fails (e.g. due to RLS), pad locally
+          String defaultRole = 'user';
+          if (i == 1) {
+            defaultRole = 'superadmin';
+          } else if (i >= 2 && i <= 5) {
+            defaultRole = 'admin';
+          }
+          list.add({
+            'slot_id': i,
+            'role': defaultRole,
+            'army_no': null,
+            'username': 'slot$i',
+            'password_hash': '123456',
+          });
+        }
+      }
+    }
+
+    if (needUpdate) {
+      try {
+        final newResponse = await _db.from('command_slots').select().order('slot_id');
+        final newList = List<Map<String, dynamic>>.from(newResponse);
+        if (newList.length >= list.length) {
+          list = newList;
+        }
+      } catch (e) {
+        // Keep the local list with padded items
+      }
+    }
+
+    list.sort((a, b) => (a['slot_id'] as int).compareTo(b['slot_id'] as int));
+    return list;
+  }
+
+  Future<void> assignSlot(
+      int slotId, String armyNo, String username, String password, String role) async {
+    await _db.from('command_slots').upsert({
+      'slot_id': slotId,
+      'army_no': armyNo.isEmpty ? null : armyNo,
+      'username': username,
+      'password_hash': password,
+      'role': role,
+    });
+  }
+
+  Future<void> clearSlot(int slotId) async {
+    await _db.from('command_slots').update({
+      'army_no': null,
+      'username': 'slot$slotId',
+      'password_hash': '123456',
+    }).eq('slot_id', slotId);
   }
 }

@@ -46,8 +46,23 @@ class MockDataManager {
       }
     }
     
-    // Initialize default empty group
-    final List<Map<String, dynamic>> defaultGroup = [];
+    // Initialize default 12 slots
+    final List<Map<String, dynamic>> defaultGroup = List.generate(12, (index) {
+      final i = index + 1;
+      String defaultRole = 'user';
+      if (i == 1) {
+        defaultRole = 'superadmin';
+      } else if (i >= 2 && i <= 5) {
+        defaultRole = 'admin';
+      }
+      return {
+        'slotId': i,
+        'role': defaultRole,
+        'armyNo': null,
+        'username': '',
+        'password': '',
+      };
+    });
     
     await saveCommandGroup(defaultGroup);
     return defaultGroup;
@@ -58,15 +73,27 @@ class MockDataManager {
     await prefs.setString('commandGroup_v2', jsonEncode(group));
   }
 
-  Future<void> assignSlot(int slotId, String armyNo, String username, String password) async {
+  Future<void> assignSlot(int slotId, String armyNo, String username, String password, String role) async {
     final group = await getCommandGroup();
+    bool found = false;
     for (var slot in group) {
       if (slot['slotId'] == slotId) {
         slot['armyNo'] = armyNo;
         slot['username'] = username.trim();
         slot['password'] = password;
+        slot['role'] = role;
+        found = true;
         break;
       }
+    }
+    if (!found) {
+      group.add({
+        'slotId': slotId,
+        'role': role,
+        'armyNo': armyNo,
+        'username': username.trim(),
+        'password': password,
+      });
     }
     await saveCommandGroup(group);
   }
