@@ -8744,6 +8744,13 @@ class _DashboardScreenState extends State<DashboardScreen>
     return true;
   }
 
+  String _getBatteryDisplayName(String bty) {
+    if (bty == 'HQ Bty') return 'HQ Battery';
+    if (bty.endsWith(' Bty')) return '${bty.substring(0, bty.length - 4)} Battery';
+    if (bty.endsWith(' Battery')) return bty;
+    return '$bty Battery';
+  }
+
   String _getRankSubcategory(String rank, String name) {
     final r = rank.trim().toLowerCase();
 
@@ -9053,62 +9060,25 @@ class _DashboardScreenState extends State<DashboardScreen>
     Map<String, int> jcoTrades = {};
     Map<String, int> sldrTrades = {};
 
-    Map<String, int> nonFightingTrades = {
-      'Clk': 0,
-      'Ck': 0,
-      'Engr': 0,
-      'N/A': 0,
-      'LAD': 0,
-      'NCB': 0,
-      'S/W': 0,
-      'Civ': 0,
-    };
-
-    Map<String, Map<String, int>> nonFightingTradeRanks = {
-      'Clk': {},
-      'Ck': {},
-      'Engr': {},
-      'N/A': {},
-      'LAD': {},
-      'NCB': {},
-      'S/W': {},
-      'Civ': {},
-    };
+    Map<String, int> nonFightingTrades = {};
+    Map<String, Map<String, int>> nonFightingTradeRanks = {};
 
     Map<String, int> fightingJcoRanks = {};
     Map<String, int> fightingSldrRanks = {};
 
     // Battery Stats mapping
-    Map<String, Map<String, int>> batteryStats = {
-      'HQ Bty': {
-        'total': 0,
-        'officers': 0,
-        'jcos': 0,
-        'sldrs': 0,
-        'nonFighting': 0,
-      },
-      'P Bty': {
-        'total': 0,
-        'officers': 0,
-        'jcos': 0,
-        'sldrs': 0,
-        'nonFighting': 0,
-      },
-      'Q Bty': {
-        'total': 0,
-        'officers': 0,
-        'jcos': 0,
-        'sldrs': 0,
-        'nonFighting': 0,
-      },
-      'R Bty': {
-        'total': 0,
-        'officers': 0,
-        'jcos': 0,
-        'sldrs': 0,
-        'nonFighting': 0,
-      },
-    };
+    Map<String, Map<String, int>> batteryStats = {};
+    for (var bty in _batteriesList) {
+      if (bty != 'All') {
+        batteryStats[bty] = {
+          'total': 0,
+          'officers': 0,
+          'jcos': 0,
+          'sldrs': 0,
+          'nonFighting': 0,
+        };
+      }
+    }
 
     for (var person in filteredPersonnel) {
       final isFighting = _isFighting(person);
@@ -9153,11 +9123,12 @@ class _DashboardScreenState extends State<DashboardScreen>
         nonFightingStrength++;
         final trade = _getTrade(person);
         final rank = person['rank'] ?? 'Sep';
-        if (nonFightingTrades.containsKey(trade)) {
-          nonFightingTrades[trade] = nonFightingTrades[trade]! + 1;
-          nonFightingTradeRanks[trade]![rank] =
-              (nonFightingTradeRanks[trade]![rank] ?? 0) + 1;
+        nonFightingTrades[trade] = (nonFightingTrades[trade] ?? 0) + 1;
+        if (!nonFightingTradeRanks.containsKey(trade)) {
+          nonFightingTradeRanks[trade] = {};
         }
+        nonFightingTradeRanks[trade]![rank] =
+            (nonFightingTradeRanks[trade]![rank] ?? 0) + 1;
       }
     }
 
@@ -9197,49 +9168,9 @@ class _DashboardScreenState extends State<DashboardScreen>
     ];
 
     // Dropdown option lists
-    final List<String> batteryOptions = [
-      'All',
-      'HQ Bty',
-      'P Bty',
-      'Q Bty',
-      'R Bty',
-    ];
-    final List<String> tradeOptions = [
-      'All',
-      'Gnr',
-      'TA',
-      'OCU',
-      'DMT',
-      'DSV',
-      'Svy',
-      'Clk',
-      'Ck',
-      'NCB',
-      'S/W',
-      'Engr',
-      'N/A',
-      'LAD',
-      'Civ',
-    ];
-    final List<String> rankOptions = [
-      'All',
-      'Officers',
-      '  Lt Col',
-      '  Maj',
-      '  Capt',
-      '  Lt',
-      '  2/Lt',
-      'JCOs',
-      '  SM',
-      '  Sub',
-      '  N/Sub',
-      'Soldiers',
-      '  Hav',
-      '  Lhav',
-      '  Nk',
-      '  Lnk',
-      '  Sep',
-    ];
+    final List<String> batteryOptions = _batteriesList;
+    final List<String> tradeOptions = _tradesList;
+    final List<String> rankOptions = _ranksList;
 
     final List<String> currentFilterValue = _analysisMode == 'Battery'
         ? _analysisFilterBattery
@@ -9475,68 +9406,52 @@ class _DashboardScreenState extends State<DashboardScreen>
                 if (_analysisMode == 'Battery') ...[
                   // Battery cards — show only selected battery full-width, or all 4 in 2x2 grid
                   if (_analysisFilterBattery.contains('All') || _analysisFilterBattery.isEmpty) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildBatteryAnalysisCard(
-                            name: 'HQ Battery',
-                            stats: batteryStats['HQ Bty'] ?? {},
-                            isDark: isDark,
-                            batteryColor: _getBatteryColor('HQ Bty'),
-                            textThemeColor: textThemeColor,
-                          ),
+                    ...List.generate((_batteriesList.where((bty) => bty != 'All').length / 2).ceil(), (rowIndex) {
+                      final activeBtys = _batteriesList.where((bty) => bty != 'All').toList();
+                      final firstIndex = rowIndex * 2;
+                      final secondIndex = firstIndex + 1;
+                      
+                      final firstBty = activeBtys[firstIndex];
+                      final secondBty = secondIndex < activeBtys.length ? activeBtys[secondIndex] : null;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12.0),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: _buildBatteryAnalysisCard(
+                                name: _getBatteryDisplayName(firstBty),
+                                stats: batteryStats[firstBty] ?? {},
+                                isDark: isDark,
+                                batteryColor: _getBatteryColor(firstBty),
+                                textThemeColor: textThemeColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            if (secondBty != null)
+                              Expanded(
+                                child: _buildBatteryAnalysisCard(
+                                  name: _getBatteryDisplayName(secondBty),
+                                  stats: batteryStats[secondBty] ?? {},
+                                  isDark: isDark,
+                                  batteryColor: _getBatteryColor(secondBty),
+                                  textThemeColor: textThemeColor,
+                                ),
+                              )
+                            else
+                              const Expanded(child: SizedBox()),
+                          ],
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildBatteryAnalysisCard(
-                            name: 'P Battery',
-                            stats: batteryStats['P Bty'] ?? {},
-                            isDark: isDark,
-                            batteryColor: _getBatteryColor('P Bty'),
-                            textThemeColor: textThemeColor,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildBatteryAnalysisCard(
-                            name: 'Q Battery',
-                            stats: batteryStats['Q Bty'] ?? {},
-                            isDark: isDark,
-                            batteryColor: _getBatteryColor('Q Bty'),
-                            textThemeColor: textThemeColor,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildBatteryAnalysisCard(
-                            name: 'R Battery',
-                            stats: batteryStats['R Bty'] ?? {},
-                            isDark: isDark,
-                            batteryColor: _getBatteryColor('R Bty'),
-                            textThemeColor: textThemeColor,
-                          ),
-                        ),
-                      ],
-                    ),
+                      );
+                    }),
                   ] else ...[
                     ..._analysisFilterBattery.map((bty) {
-                      final displayName = bty == 'HQ Bty'
-                          ? 'HQ Battery'
-                          : bty == 'P Bty'
-                              ? 'P Battery'
-                              : bty == 'Q Bty'
-                                  ? 'Q Battery'
-                                  : 'R Battery';
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12.0),
                         child: SizedBox(
                           width: double.infinity,
                           child: _buildBatteryAnalysisCard(
-                            name: displayName,
+                            name: _getBatteryDisplayName(bty),
                             stats: batteryStats[bty] ?? {},
                             isDark: isDark,
                             batteryColor: _getBatteryColor(bty),
