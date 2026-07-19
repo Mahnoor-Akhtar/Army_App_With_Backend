@@ -8898,6 +8898,15 @@ class _DashboardScreenState extends State<DashboardScreen>
 
   /// Returns the distinct color for each battery.
   Color _getBatteryColor(String bty) {
+    final colors = context.read<DashboardViewModel>().batteryColors;
+    if (colors.containsKey(bty)) {
+      final hex = colors[bty]!;
+      final cleanHex = hex.replaceAll('#', '');
+      final val = int.tryParse(cleanHex, radix: 16);
+      if (val != null) {
+        return Color(val | 0xFF000000);
+      }
+    }
     switch (bty) {
       case 'HQ Bty':
         return const Color(0xFFE53935); // Red - Headquarter Battery
@@ -10631,6 +10640,15 @@ class _CategoryPersonnelListScreenState
 
   /// Returns the color associated with a battery name.
   Color _getBatteryColor(String bty) {
+    final colors = context.read<DashboardViewModel>().batteryColors;
+    if (colors.containsKey(bty)) {
+      final hex = colors[bty]!;
+      final cleanHex = hex.replaceAll('#', '');
+      final val = int.tryParse(cleanHex, radix: 16);
+      if (val != null) {
+        return Color(val | 0xFF000000);
+      }
+    }
     switch (bty) {
       case 'HQ Bty':
         return const Color(0xFFE53935); // Red - Headquarter Battery

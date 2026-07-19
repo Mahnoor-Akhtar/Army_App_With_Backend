@@ -74,6 +74,24 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
       text: type == 'Rank' && existingValue != null ? existingValue.trim() : existingValue,
     );
 
+    final List<Map<String, dynamic>> presetColors = [
+      {'name': 'Red', 'hex': '#EF5350', 'color': const Color(0xFFEF5350)},
+      {'name': 'Light Gray', 'hex': '#9E9E9E', 'color': const Color(0xFF9E9E9E)},
+      {'name': 'Light Orange', 'hex': '#FF9800', 'color': const Color(0xFFFF9800)},
+      {'name': 'Light Green', 'hex': '#4CAF50', 'color': const Color(0xFF4CAF50)},
+      {'name': 'Blue', 'hex': '#2196F3', 'color': const Color(0xFF2196F3)},
+      {'name': 'Purple', 'hex': '#9C27B0', 'color': const Color(0xFF9C27B0)},
+      {'name': 'Teal', 'hex': '#009688', 'color': const Color(0xFF009688)},
+      {'name': 'Pink', 'hex': '#E91E63', 'color': const Color(0xFFE91E63)},
+      {'name': 'Amber', 'hex': '#FFC107', 'color': const Color(0xFFFFC107)},
+      {'name': 'Indigo', 'hex': '#3F51B5', 'color': const Color(0xFF3F51B5)},
+    ];
+
+    String selectedColorHex = '#EF5350';
+    if (type == 'Battery' && existingValue != null) {
+      selectedColorHex = viewModel.batteryColors[existingValue] ?? '#EF5350';
+    }
+
     String selectedType = 'Subcategory';
     String? selectedParent;
     final List<String> categories = viewModel.ranks
@@ -171,6 +189,54 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
                     ],
                     const SizedBox(height: 12),
                   ],
+                  if (type == 'Battery') ...[
+                    const SizedBox(height: 8),
+                    const Text('Select Battery Color (Compulsory):',
+                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber)),
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 48,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: presetColors.map((cp) {
+                          final hex = cp['hex'] as String;
+                          final col = cp['color'] as Color;
+                          final isSelected = selectedColorHex.toLowerCase() == hex.toLowerCase();
+                          return GestureDetector(
+                            onTap: () {
+                              setDialogState(() {
+                                selectedColorHex = hex;
+                              });
+                            },
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 4),
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: col,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected ? Colors.white : Colors.transparent,
+                                  width: 2.5,
+                                ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  )
+                                ],
+                              ),
+                              child: isSelected
+                                  ? const Icon(Icons.check, color: Colors.white, size: 18)
+                                  : null,
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
                   TextField(
                     controller: controller,
                     style: TextStyle(color: widget.textThemeColor),
@@ -206,9 +272,9 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
                       }
                     } else if (type == 'Battery') {
                       if (existingValue != null && index != null) {
-                        await viewModel.editBattery(index, val);
+                        await viewModel.editBattery(index, existingValue, val, selectedColorHex);
                       } else {
-                        await viewModel.addBattery(val);
+                        await viewModel.addBattery(val, selectedColorHex);
                       }
                     } else if (type == 'Category') {
                       if (existingValue != null && index != null) {
@@ -278,6 +344,30 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
     );
   }
 
+  Color _getBatteryColor(BuildContext context, String bty) {
+    final colors = context.read<ManageAttributesViewModel>().batteryColors;
+    if (colors.containsKey(bty)) {
+      final hex = colors[bty]!;
+      final cleanHex = hex.replaceAll('#', '');
+      final val = int.tryParse(cleanHex, radix: 16);
+      if (val != null) {
+        return Color(val | 0xFF000000);
+      }
+    }
+    switch (bty) {
+      case 'HQ Bty':
+        return const Color(0xFFE53935);
+      case 'P Bty':
+        return const Color(0xFF9E9E9E);
+      case 'Q Bty':
+        return const Color(0xFFFF9800);
+      case 'R Bty':
+        return const Color(0xFF4CAF50);
+      default:
+        return const Color(0xFFE53935);
+    }
+  }
+
   Widget _buildList(BuildContext context, String type, List<String> items) {
     return ListView.builder(
       padding: const EdgeInsets.all(16),
@@ -314,7 +404,16 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
               leading: isSub
                   ? Icon(Icons.subdirectory_arrow_right,
                       color: widget.goldAccent.withValues(alpha: 0.7), size: 16)
-                  : null,
+                  : (type == 'Battery' && !isAll
+                      ? Container(
+                          width: 14,
+                          height: 14,
+                          decoration: BoxDecoration(
+                            color: _getBatteryColor(context, item),
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                      : null),
               title: Text(
                 displayText,
                 style: TextStyle(

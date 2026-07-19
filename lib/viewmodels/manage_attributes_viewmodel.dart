@@ -10,6 +10,7 @@ class ManageAttributesViewModel extends ChangeNotifier {
   List<String> ranks = [];
   List<String> batteries = [];
   List<String> categories = [];
+  Map<String, String> batteryColors = {};
   bool isLoading = true;
 
   ManageAttributesViewModel() {
@@ -28,6 +29,7 @@ class ManageAttributesViewModel extends ChangeNotifier {
       ranks = await repo.getSystemAttributeItems('ranks');
       batteries = await repo.getSystemAttributeItems('batteries');
       categories = await repo.getSystemAttributeItems('categories');
+      batteryColors = await repo.getBatteryColors();
 
       if (!trades.contains('All')) trades.insert(0, 'All');
       if (!ranks.contains('All')) ranks.insert(0, 'All');
@@ -37,11 +39,13 @@ class ManageAttributesViewModel extends ChangeNotifier {
       trades = await MockDataManager().getTrades();
       ranks = await MockDataManager().getRanks();
       batteries = await MockDataManager().getBatteries();
+      batteryColors = await MockDataManager().getBatteryColors();
     }
 
     if (trades.isEmpty) trades = await MockDataManager().getTrades();
     if (ranks.isEmpty) ranks = await MockDataManager().getRanks();
     if (batteries.isEmpty) batteries = await MockDataManager().getBatteries();
+    if (batteryColors.isEmpty) batteryColors = await MockDataManager().getBatteryColors();
 
     isLoading = false;
     notifyListeners();
@@ -61,7 +65,11 @@ class ManageAttributesViewModel extends ChangeNotifier {
 
   Future<void> _saveBatteries() async {
     await MockDataManager().saveBatteries(batteries);
-    try { await SupabaseRepository().updateSystemAttributeItems('batteries', batteries); } catch (_) {}
+    await MockDataManager().saveBatteryColors(batteryColors);
+    try {
+      await SupabaseRepository().updateSystemAttributeItems('batteries', batteries);
+      await SupabaseRepository().saveBatteryColors(batteryColors);
+    } catch (_) {}
   }
 
   Future<void> _saveCategories() async {
@@ -164,20 +172,25 @@ class ManageAttributesViewModel extends ChangeNotifier {
 
   // ── Battery CRUD ─────────────────────────────────────────────────────────
 
-  Future<void> addBattery(String value) async {
+  Future<void> addBattery(String value, String colorHex) async {
     batteries.add(value);
+    batteryColors[value] = colorHex;
     notifyListeners();
     await _saveBatteries();
   }
 
-  Future<void> editBattery(int index, String value) async {
-    batteries[index] = value;
+  Future<void> editBattery(int index, String oldValue, String newValue, String colorHex) async {
+    batteries[index] = newValue;
+    batteryColors.remove(oldValue);
+    batteryColors[newValue] = colorHex;
     notifyListeners();
     await _saveBatteries();
   }
 
   Future<void> deleteBattery(int index) async {
+    final value = batteries[index];
     batteries.removeAt(index);
+    batteryColors.remove(value);
     notifyListeners();
     await _saveBatteries();
   }

@@ -220,6 +220,30 @@ class SupabaseRepository {
     });
   }
 
+  Future<Map<String, String>> getBatteryColors() async {
+    try {
+      final response = await _db
+          .from('system_attributes')
+          .select('items')
+          .eq('attribute_type', 'battery_colors')
+          .maybeSingle();
+      if (response == null || response['items'] == null) return {};
+      final map = response['items'] as Map<String, dynamic>;
+      return map.map((key, value) => MapEntry(key, value.toString()));
+    } catch (_) {
+      return {};
+    }
+  }
+
+  Future<void> saveBatteryColors(Map<String, String> colors) async {
+    try {
+      await _db.from('system_attributes').upsert({
+        'attribute_type': 'battery_colors',
+        'items': colors,
+      });
+    } catch (_) {}
+  }
+
   Future<List<Map<String, dynamic>>> getStatusCategories() async {
     final response = await _db
         .from('status_categories')

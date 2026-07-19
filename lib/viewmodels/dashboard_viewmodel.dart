@@ -19,6 +19,7 @@ class DashboardViewModel extends ChangeNotifier {
   List<String> _tradesList = ['All'];
   List<String> _ranksList = ['All'];
   List<String> _batteriesList = ['All'];
+  Map<String, String> _batteryColors = {};
 
   // ── Getters ─────────────────────────────────────────────────────────────
 
@@ -32,6 +33,7 @@ class DashboardViewModel extends ChangeNotifier {
   List<String> get tradesList => _tradesList;
   List<String> get ranksList => _ranksList;
   List<String> get batteriesList => _batteriesList;
+  Map<String, String> get batteryColors => _batteryColors;
 
   bool get canAccessEditTab {
     final role = MockDataManager().role;
@@ -52,6 +54,7 @@ class DashboardViewModel extends ChangeNotifier {
       final trades = await repo.getSystemAttributeItems('trades');
       final ranks = await repo.getSystemAttributeItems('ranks');
       final batteries = await repo.getSystemAttributeItems('batteries');
+      final colors = await repo.getBatteryColors();
       
       if (!trades.contains('All')) trades.insert(0, 'All');
       if (!ranks.contains('All')) ranks.insert(0, 'All');
@@ -60,10 +63,12 @@ class DashboardViewModel extends ChangeNotifier {
       _tradesList = trades.isEmpty ? await MockDataManager().getTrades() : trades;
       _ranksList = ranks.isEmpty ? await MockDataManager().getRanks() : ranks;
       _batteriesList = batteries.isEmpty ? await MockDataManager().getBatteries() : batteries;
+      _batteryColors = colors.isEmpty ? await MockDataManager().getBatteryColors() : colors;
     } catch (e) {
       _tradesList = await MockDataManager().getTrades();
       _ranksList = await MockDataManager().getRanks();
       _batteriesList = await MockDataManager().getBatteries();
+      _batteryColors = await MockDataManager().getBatteryColors();
     }
     notifyListeners();
   }

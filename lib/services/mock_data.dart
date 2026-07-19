@@ -231,4 +231,26 @@ class MockDataManager {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('batteries_list', jsonEncode(batteries));
   }
+
+  Future<Map<String, String>> getBatteryColors() async {
+    final prefs = await SharedPreferences.getInstance();
+    final str = prefs.getString('battery_colors');
+    if (str != null) {
+      try {
+        final map = jsonDecode(str) as Map<String, dynamic>;
+        return map.map((key, value) => MapEntry(key, value.toString()));
+      } catch (_) {}
+    }
+    return {
+      'HQ Bty': '#E53935',
+      'P Bty': '#9E9E9E',
+      'Q Bty': '#FF9800',
+      'R Bty': '#4CAF50',
+    };
+  }
+
+  Future<void> saveBatteryColors(Map<String, String> colors) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('battery_colors', jsonEncode(colors));
+  }
 }
