@@ -89,7 +89,9 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
 
     String selectedColorHex = '#EF5350';
     if (type == 'Battery' && existingValue != null) {
-      selectedColorHex = viewModel.batteryColors[existingValue] ?? '#EF5350';
+      if (viewModel.batteryColors != null) {
+        selectedColorHex = viewModel.batteryColors[existingValue] ?? '#EF5350';
+      }
     }
 
     String selectedType = 'Subcategory';
@@ -346,7 +348,7 @@ class _ManageAttributesScreenContentState extends State<_ManageAttributesScreenC
 
   Color _getBatteryColor(BuildContext context, String bty) {
     final colors = context.read<ManageAttributesViewModel>().batteryColors;
-    if (colors.containsKey(bty)) {
+    if (colors != null && colors.containsKey(bty)) {
       final hex = colors[bty]!;
       final cleanHex = hex.replaceAll('#', '');
       final val = int.tryParse(cleanHex, radix: 16);
