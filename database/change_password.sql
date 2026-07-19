@@ -1,6 +1,10 @@
 -- ============================================
 -- CHANGE PASSWORD FUNCTION
 -- ============================================
+-- Drop existing functions to avoid conflicts
+DROP FUNCTION IF EXISTS change_password(text, text, text);
+DROP FUNCTION IF EXISTS change_password(character varying, character varying, character varying);
+
 CREATE OR REPLACE FUNCTION change_password(
     p_username text,
     p_old_password text,
