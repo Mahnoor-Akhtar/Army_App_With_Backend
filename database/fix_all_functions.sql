@@ -1,11 +1,6 @@
 -- ============================================
--- STEP 1: LIST EXISTING FUNCTIONS (for debugging)
+-- STEP 1: (SKIP LISTING FUNCTIONS TO AVOID ERROR)
 -- ============================================
-SELECT routine_name, data_type, parameter_name
-FROM information_schema.parameters
-WHERE specific_schema = 'public'
-  AND routine_name IN ('verify_password', 'change_password')
-ORDER BY routine_name, ordinal_position;
 
 -- ============================================
 -- STEP 2: DROP ALL EXISTING FUNCTIONS
