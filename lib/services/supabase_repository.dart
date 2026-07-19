@@ -21,6 +21,10 @@ class SupabaseRepository {
     await _db.from('personnel').insert(personnelData);
   }
 
+  Future<void> deletePersonnel(String armyNo) async {
+    await _db.from('personnel').delete().eq('army_no', armyNo);
+  }
+
   Future<void> updatePersonnel(String armyNo, Map<String, dynamic> personnelData) async {
     await _db.from('personnel').update(personnelData).eq('army_no', armyNo);
   }

@@ -732,24 +732,26 @@ class PersonnelDataManager extends ChangeNotifier {
       saveToPrefs();
 
       // Sync basic profile data to personnel table
-      SupabaseRepository().updatePersonnel(oldArmyNo, {
-        'army_no': updatedPerson['armyNo'],
-        'rank': updatedPerson['rank'],
-        'name': updatedPerson['name'],
-        'trade': updatedPerson['trade'],
-        'category': updatedPerson['category'],
-        'cl': updatedPerson['cl'],
-        'battery': updatedPerson['battery'],
-        'phone_number': updatedPerson['phone'],
-        'city': updatedPerson['city'],
-        'remarks': updatedPerson['remarks'],
-        'fighting_status': updatedPerson['isFighting'] == 'true' ? 'Fighting' : 'Non-Fighting',
-        'profile_photo': updatedPerson['avatar'],
-      }).catchError((e) {
+      try {
+        await SupabaseRepository().updatePersonnel(oldArmyNo, {
+          'army_no': updatedPerson['armyNo'],
+          'rank': updatedPerson['rank'],
+          'name': updatedPerson['name'],
+          'trade': updatedPerson['trade'],
+          'category': updatedPerson['category'],
+          'cl': updatedPerson['cl'],
+          'battery': updatedPerson['battery'],
+          'phone_number': updatedPerson['phone'],
+          'city': updatedPerson['city'],
+          'remarks': updatedPerson['remarks'],
+          'fighting_status': updatedPerson['isFighting'] == 'true' ? 'Fighting' : 'Non-Fighting',
+          'profile_photo': updatedPerson['avatar'],
+        });
+      } catch (e) {
         if (kDebugMode) {
           print('Error updating personnel in database: $e');
         }
-      });
+      }
 
       // If the location/city has changed, also update the destination
       // on the currently active status_history row so the assignment
@@ -771,14 +773,30 @@ class PersonnelDataManager extends ChangeNotifier {
           }
         }
       }
+
+      await _loadPersonnelFromSupabase();
+      notifyListeners();
     }
   }
 
-  void removePerson(String armyNo) {
+  Future<void> removePerson(String armyNo) async {
     nominalRollList.removeWhere((p) => p['armyNo'] == armyNo);
     _statuses.remove(armyNo);
     _history.remove(armyNo);
     saveToPrefs();
+    notifyListeners();
+
+    try {
+      await SupabaseRepository().deletePersonnel(armyNo);
+      if (kDebugMode) {
+        print('Successfully deleted personnel from database.');
+      }
+      await _loadPersonnelFromSupabase();
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error deleting personnel from database: $e');
+      }
+    }
   }
 
   // --- Dynamic Custom Groups Management ---

@@ -3882,17 +3882,19 @@ class _DashboardScreenState extends State<DashboardScreen>
               ),
             ),
             TextButton(
-              onPressed: () {
-                PersonnelDataManager().removePerson(armyNo);
-                setState(() {});
-                Navigator.pop(context);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Successfully deleted $name!'),
-                    backgroundColor: Colors.redAccent,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
+              onPressed: () async {
+                await PersonnelDataManager().removePerson(armyNo);
+                if (mounted) {
+                  setState(() {});
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Successfully deleted $name!'),
+                      backgroundColor: Colors.redAccent,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
+                }
               },
               child: const Text(
                 'DELETE',
