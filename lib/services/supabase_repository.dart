@@ -175,6 +175,32 @@ class SupabaseRepository {
     }).eq('slot_id', slotId);
   }
 
+  Future<Map<String, dynamic>?> changePassword(String username, String oldPassword, String newPassword) async {
+    print('SupabaseRepository.changePassword: Calling change_password for username: $username');
+    try {
+      final response = await _db.rpc(
+        'change_password',
+        params: {
+          'p_username': username,
+          'p_old_password': oldPassword,
+          'p_new_password': newPassword,
+        },
+      );
+
+      print('SupabaseRepository.changePassword: Response: $response');
+
+      if (response == null) {
+        print('SupabaseRepository.changePassword: Response is null');
+        return null;
+      }
+      return response as Map<String, dynamic>;
+    } catch (e, stackTrace) {
+      print('SupabaseRepository.changePassword: Error: $e');
+      print('SupabaseRepository.changePassword: Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
   Future<List<String>> getSystemAttributeItems(String attributeType) async {
     final response = await _db
         .from('system_attributes')

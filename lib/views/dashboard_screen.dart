@@ -5177,143 +5177,245 @@ class _DashboardScreenState extends State<DashboardScreen>
     Color goldAccent,
   ) {
     final currentUsername = MockDataManager().username ?? '';
+    final oldPassController = TextEditingController();
     final newPassController = TextEditingController();
     final confirmPassController = TextEditingController();
 
     showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          backgroundColor: isDark ? const Color(0xFF0A2214) : Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: BorderSide(
-              color: goldAccent.withValues(alpha: 0.3),
-              width: 1.2,
-            ),
-          ),
-          title: Text(
-            'CHANGE PASSWORD',
-            style: TextStyle(
-              color: goldAccent,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              letterSpacing: 1.0,
-            ),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: newPassController,
-                style: TextStyle(color: textThemeColor, fontSize: 13),
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'New Password',
-                  labelStyle: TextStyle(color: goldAccent, fontSize: 11),
-                  filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF03140A)
-                      : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: goldAccent.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: goldAccent),
-                  ),
+        return StatefulBuilder(
+          builder: (context, setState) {
+            bool obscureOld = true;
+            bool obscureNew = true;
+            bool obscureConfirm = true;
+            bool isLoading = false;
+
+            return AlertDialog(
+              backgroundColor: isDark ? const Color(0xFF0A2214) : Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+                side: BorderSide(
+                  color: goldAccent.withValues(alpha: 0.3),
+                  width: 1.2,
                 ),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: confirmPassController,
-                style: TextStyle(color: textThemeColor, fontSize: 13),
-                obscureText: true,
-                decoration: InputDecoration(
-                  labelText: 'Confirm Password',
-                  labelStyle: TextStyle(color: goldAccent, fontSize: 11),
-                  filled: true,
-                  fillColor: isDark
-                      ? const Color(0xFF03140A)
-                      : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 8,
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(
-                      color: goldAccent.withValues(alpha: 0.15),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide(color: goldAccent),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text(
-                'CANCEL',
-                style: TextStyle(color: silverText, fontSize: 12),
-              ),
-            ),
-            TextButton(
-              onPressed: () async {
-                final newPass = newPassController.text;
-                final confirmPass = confirmPassController.text;
-
-                if (newPass.isEmpty || confirmPass.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Password fields cannot be empty.'),
-                    ),
-                  );
-                  return;
-                }
-
-                if (newPass != confirmPass) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Passwords do not match.')),
-                  );
-                  return;
-                }
-
-                await MockDataManager().changePassword(
-                  currentUsername,
-                  newPass,
-                );
-                if (!context.mounted) return;
-                Navigator.pop(context);
-
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Password updated successfully!'),
-                    backgroundColor: Color(0xFF0C5A32),
-                  ),
-                );
-              },
-              child: Text(
-                'SAVE',
+              title: Text(
+                'CHANGE PASSWORD',
                 style: TextStyle(
                   color: goldAccent,
                   fontWeight: FontWeight.bold,
-                  fontSize: 12,
+                  fontSize: 14,
+                  letterSpacing: 1.0,
                 ),
               ),
-            ),
-          ],
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: oldPassController,
+                    style: TextStyle(color: textThemeColor, fontSize: 13),
+                    obscureText: obscureOld,
+                    decoration: InputDecoration(
+                      labelText: 'Old Password',
+                      labelStyle: TextStyle(color: goldAccent, fontSize: 11),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF03140A)
+                          : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: goldAccent.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: goldAccent),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureOld ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: silverText,
+                          size: 18,
+                        ),
+                        onPressed: () => setState(() => obscureOld = !obscureOld),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: newPassController,
+                    style: TextStyle(color: textThemeColor, fontSize: 13),
+                    obscureText: obscureNew,
+                    decoration: InputDecoration(
+                      labelText: 'New Password',
+                      labelStyle: TextStyle(color: goldAccent, fontSize: 11),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF03140A)
+                          : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: goldAccent.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: goldAccent),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureNew ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: silverText,
+                          size: 18,
+                        ),
+                        onPressed: () => setState(() => obscureNew = !obscureNew),
+                      ),
+                    ),
+                  ),
+              const SizedBox(height: 12),
+                  TextField(
+                    controller: confirmPassController,
+                    style: TextStyle(color: textThemeColor, fontSize: 13),
+                    obscureText: obscureConfirm,
+                    decoration: InputDecoration(
+                      labelText: 'Confirm Password',
+                      labelStyle: TextStyle(color: goldAccent, fontSize: 11),
+                      filled: true,
+                      fillColor: isDark
+                          ? const Color(0xFF03140A)
+                          : const Color(0xFFE8F5EE).withValues(alpha: 0.3),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 8,
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(
+                          color: goldAccent.withValues(alpha: 0.15),
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide(color: goldAccent),
+                      ),
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                          color: silverText,
+                          size: 18,
+                        ),
+                        onPressed: () => setState(() => obscureConfirm = !obscureConfirm),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isLoading ? null : () => Navigator.pop(context),
+                  child: Text(
+                    'CANCEL',
+                    style: TextStyle(color: silverText, fontSize: 12),
+                  ),
+                ),
+                TextButton(
+                  onPressed: isLoading ? null : () async {
+                    final oldPass = oldPassController.text;
+                    final newPass = newPassController.text;
+                    final confirmPass = confirmPassController.text;
+
+                    if (oldPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('All password fields are required.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    if (newPass != confirmPass) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Passwords do not match.')),
+                      );
+                      return;
+                    }
+
+                    setState(() => isLoading = true);
+                    try {
+                      final result = await SupabaseRepository().changePassword(
+                        currentUsername,
+                        oldPass,
+                        newPass,
+                      );
+
+                      if (!context.mounted) return;
+
+                      if (result == null || result['success'] == false) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              result?['message'] ?? 'Failed to update password.'
+                            ),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Also update mock data manager
+                      await MockDataManager().changePassword(
+                        currentUsername, newPass);
+                      Navigator.pop(context);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Password updated successfully!'),
+                          backgroundColor: Color(0xFF0C5A32),
+                        ),
+                      );
+                    } catch (e) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Error: ${e.toString()}'),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
+                      }
+                    } finally {
+                      if (context.mounted) {
+                        setState(() => isLoading = false);
+                      }
+                    }
+                  },
+                  child: isLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(
+                        'SAVE',
+                        style: TextStyle(
+                          color: goldAccent,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                ),
+              ],
+            );
+          },
         );
       },
     );
