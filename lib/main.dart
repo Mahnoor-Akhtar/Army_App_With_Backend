@@ -44,6 +44,20 @@ class MyApp extends StatelessWidget {
     final appVM = context.watch<AppViewModel>();
     final isDark = appVM.isDarkMode;
 
+    if (!appVM.isInitialized) {
+      // Show loading indicator while initializing
+      return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          body: Center(
+            child: CircularProgressIndicator(
+              color: isDark ? Colors.white : const Color(0xFF0C5A32),
+            ),
+          ),
+        ),
+      );
+    }
+
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: '117 SP Regt.',
