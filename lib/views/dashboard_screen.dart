@@ -1682,13 +1682,13 @@ class _DashboardScreenState extends State<DashboardScreen>
       }
 
       if (_filterStartDate != null) {
-        if (status.startDate.isBefore(_filterStartDate!)) {
+        if (!DateUtils.isSameDay(status.startDate, _filterStartDate)) {
           return false;
         }
       }
 
       if (_filterEndDate != null) {
-        if (status.endDate != null && status.endDate!.isAfter(_filterEndDate!)) {
+        if (status.endDate == null || !DateUtils.isSameDay(status.endDate, _filterEndDate)) {
           return false;
         }
       }
