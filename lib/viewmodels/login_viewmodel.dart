@@ -15,7 +15,9 @@ class LoginViewModel extends ChangeNotifier {
   /// Attempts to log in with [username] and [password] using Supabase.
   /// Returns an error message string on failure, or null on success.
   Future<String?> login(String username, String password) async {
+    print('LoginViewModel.login: Called with username: $username');
     if (username.isEmpty || password.isEmpty) {
+      print('LoginViewModel.login: Username or password empty');
       return 'Please enter both username and password.';
     }
 
@@ -25,11 +27,14 @@ class LoginViewModel extends ChangeNotifier {
 
     try {
       final result = await _repo.authenticateUser(username, password);
+      print('LoginViewModel.login: Got result: $result');
 
       if (result == null || result['success'] == false) {
         _isLoading = false;
         notifyListeners();
-        return result?['message'] ?? 'Invalid username or password';
+        final errorMsg = result?['message'] ?? 'Invalid username or password';
+        print('LoginViewModel.login: Failed with error: $errorMsg');
+        return errorMsg;
       }
 
       // Map Supabase role to app role
@@ -44,16 +49,21 @@ class LoginViewModel extends ChangeNotifier {
       }
       final adminArmyNo = result['army_no'] as String?;
 
+      print('LoginViewModel.login: Mapped role: $role, armyNo: $adminArmyNo');
+
       // Update MockDataManager session state for app compatibility
       MockDataManager().login(username, role, adminArmyNo: adminArmyNo);
 
       _isLoading = false;
       notifyListeners();
+      print('LoginViewModel.login: Success!');
       return null; // success
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('LoginViewModel.login: Exception: $e');
+      print('LoginViewModel.login: Stack trace: $stackTrace');
       _isLoading = false;
       notifyListeners();
-      return 'An error occurred. Please try again.';
+      return 'Invalid username or password';
     }
   }
 

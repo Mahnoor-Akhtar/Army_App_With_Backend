@@ -11,11 +11,19 @@ class SupabaseService {
   late final SupabaseClient client;
 
   Future<void> initialize() async {
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
-    client = Supabase.instance.client;
+    print('SupabaseService.initialize: Initializing with URL: $supabaseUrl');
+    try {
+      await Supabase.initialize(
+        url: supabaseUrl,
+        anonKey: supabaseAnonKey,
+      );
+      client = Supabase.instance.client;
+      print('SupabaseService.initialize: Success! Client initialized.');
+    } catch (e, stackTrace) {
+      print('SupabaseService.initialize: Error initializing: $e');
+      print('SupabaseService.initialize: Stack trace: $stackTrace');
+      rethrow;
+    }
   }
 
   SupabaseClient get db => client;

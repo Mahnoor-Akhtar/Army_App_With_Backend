@@ -146,13 +146,33 @@ class SupabaseRepository {
   }
 
   Future<Map<String, dynamic>?> authenticateUser(String username, String password) async {
-    final response = await _db.rpc(
-      'verify_password',
-      params: {'p_username': username, 'p_password': password},
-    );
+    print('SupabaseRepository.authenticateUser: Calling verify_password with username: $username');
+    try {
+      final response = await _db.rpc(
+        'verify_password',
+        params: {'p_username': username, 'p_password': password},
+      );
 
-    if (response == null) return null;
-    return response as Map<String, dynamic>;
+      print('SupabaseRepository.authenticateUser: Response: $response');
+
+      if (response == null) {
+        print('SupabaseRepository.authenticateUser: Response is null');
+        return null;
+      }
+      return response as Map<String, dynamic>;
+    } catch (e, stackTrace) {
+      print('SupabaseRepository.authenticateUser: Error: $e');
+      print('SupabaseRepository.authenticateUser: Stack trace: $stackTrace');
+      rethrow;
+    }
+  }
+
+  Future<void> updateSlotCredentials(int slotId, String armyNo, String username, String plainPassword) async {
+    await _db.from('command_slots').update({
+      'army_no': armyNo.isEmpty ? null : armyNo,
+      'username': username,
+      'password_hash': plainPassword,
+    }).eq('slot_id', slotId);
   }
 
   Future<List<String>> getSystemAttributeItems(String attributeType) async {

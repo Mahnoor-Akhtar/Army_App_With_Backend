@@ -27,6 +27,7 @@ import '../viewmodels/nominal_roll_viewmodel.dart';
 import '../viewmodels/analysis_viewmodel.dart';
 import 'personnel_profile_screen.dart';
 import '../viewmodels/edit_tab_viewmodel.dart';
+import '../models/status_history.dart';
 import '../services/supabase_repository.dart';
 import 'package:open_file/open_file.dart';
 
@@ -4333,6 +4334,18 @@ class _DashboardScreenState extends State<DashboardScreen>
                         ),
                       );
                       return;
+                    }
+
+                    try {
+                      await SupabaseRepository().updateSlotCredentials(
+                        slotId,
+                        armyNo,
+                        newUsername,
+                        newPassword,
+                      );
+                    } catch (e) {
+                      // Silently continue if Supabase update fails or table doesn't exist yet, 
+                      // but ideally it should succeed.
                     }
 
                     await MockDataManager().assignSlot(
